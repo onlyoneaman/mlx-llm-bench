@@ -1,0 +1,27 @@
+# Per-run artifacts (full audit trail stays local)
+runs/
+RESULTS.md
+
+# Historical leaderboard snapshots (timestamped) stay local
+archive/
+
+# leaderboard.json and leaderboard.csv ARE committed
+# — they are the canonical published snapshot.
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp

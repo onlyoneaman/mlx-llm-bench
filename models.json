@@ -1,0 +1,56 @@
+{
+  "qwen3-8b": {
+    "model_id": "mlx-community/Qwen3-8B-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 5.0,
+    "notes": "General purpose. MMLU 76.89, MATH 60.80 (primary)."
+  },
+  "qwen2.5-coder-7b": {
+    "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 4.7,
+    "notes": "Coding specialist. HumanEval 88.4 (primary)."
+  },
+  "gemma4-e4b": {
+    "model_id": "mlx-community/gemma-4-e4b-it-4bit",
+    "backend": "mlx-vlm",
+    "size_gb": 5.2,
+    "notes": "Multimodal (vision + audio). mlx-lm 0.31.3 incompatible (issue #1242)."
+  },
+  "gemma3-12b-qat": {
+    "model_id": "mlx-community/gemma-3-12b-it-qat-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 8.0,
+    "notes": "QAT 4-bit. Tight on 16GB. MMLU 74.5 (primary)."
+  },
+  "gemma3-4b-qat": {
+    "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 2.6,
+    "notes": "Multimodal small. MMLU 59.6 (primary)."
+  },
+  "phi4-mini-reasoning": {
+    "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 2.2,
+    "notes": "Math/STEM reasoning. MATH-500 94.6 (primary)."
+  },
+  "smollm3-3b": {
+    "model_id": "mlx-community/SmolLM3-3B-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 1.8,
+    "notes": "Fast generalist, 128K context. IFEval 76.7 (primary)."
+  },
+  "deepseek-r1-distill-7b": {
+    "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 4.5,
+    "notes": "Reasoning distill. MATH-500 92.8 (primary)."
+  },
+  "llama-3.2-3b": {
+    "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+    "backend": "mlx-lm",
+    "size_gb": 1.8,
+    "notes": "Fast lightweight default."
+  }
+}

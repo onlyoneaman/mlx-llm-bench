@@ -89,4 +89,4 @@ MIT — see `LICENSE`. The benchmark and dataset are MIT-licensed; individual mo
 
 ## Author
 
-Aman — [amankumar.ai](https://amankumar.ai)
+Aman — [amankumar.ai](https://amankumar.ai) · [@onlyoneaman](https://x.com/onlyoneaman)

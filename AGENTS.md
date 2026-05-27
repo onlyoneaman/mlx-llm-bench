@@ -70,6 +70,16 @@ mlx-llm-bench/
 7. `./bench export` — refreshes `leaderboard.{json,csv}` and archives a timestamped copy.
 8. Stage & commit: `git add models.json leaderboard.json leaderboard.csv` and a short message.
 
+### Annotation rubric (applies when adding/editing examples)
+
+When you add a new example or evaluate an existing label, apply these tiebreakers:
+
+- **Topic**: corporate transactions, earnings, market cap, M&A, layoffs, recalls = `business`, even when the company is a tech company. Product launches, technical announcements, software releases, research milestones = `tech`. Geopolitics, conflicts, disasters, international policy = `world`. Anything where a team, league, or athlete is the subject = `sports`.
+- **Sentiment**: litotes ("not bad", "can't say I hated it") reads as the *opposite of the negated adjective* — generally positive. Faint praise comparatives ("better than expected, which isn't saying much") read by the dominant signal — if the qualifier negates the praise, it's negative.
+- **Spam**: requires ≥2 BEC markers from {changed bank details, urgency to bypass normal approval, requests for gift cards, claimed authority, secrecy, mismatched sender pattern} to be labeled `spam`. A single suspicious framing alone stays `ham`.
+
+Past audits caught these inconsistencies: lines 33/59 had identical-structure acquisition stories labeled opposite ways (now both `business`); lines 52/56 had near-identical litotes pairs labeled opposite ways (now line 56 is non-litotes). If you add a new edge case, search the existing data first for any similar phrasing to avoid recreating the same trap.
+
 ### "Add a new test example" / "Test with harder X cases"
 
 1. Edit `data.json`. The file is a single flat array of `{"task", "text", "label"}` objects.

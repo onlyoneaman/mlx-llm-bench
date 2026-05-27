@@ -37,7 +37,14 @@ VALID = {
 }
 
 
+_THINK_RE = re.compile(r"<think>.*?</think>|<thought>.*?</thought>", re.DOTALL | re.IGNORECASE)
+
+
 def parse_answer(raw, task):
+    # Reasoning models (Phi-4-reasoning, DeepSeek-R1 distills, Qwen3 with thinking)
+    # wrap chain-of-thought in <think>...</think>. Strip it so the parser sees
+    # only the post-reasoning answer.
+    raw = _THINK_RE.sub("", raw)
     words = re.findall(r"[A-Za-z]+", raw.lower())
     for w in words:
         if w in VALID[task]:
@@ -122,7 +129,7 @@ def main():
     p.add_argument("--backend", choices=["mlx-lm", "mlx-vlm"], required=True)
     p.add_argument("--data", required=True)
     p.add_argument("--out", required=True)
-    p.add_argument("--max-tokens", type=int, default=5)
+    p.add_argument("--max-tokens", type=int, default=250)
     args = p.parse_args()
 
     data = json.loads(Path(args.data).read_text())

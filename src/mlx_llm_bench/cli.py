@@ -54,17 +54,27 @@ def hf_cache_dir(model_id):
     return Path.home() / ".cache/huggingface/hub" / f"models--{model_id.replace('/', '--')}"
 
 
+_is_cached_memo = {}
+
+
 def is_cached(model_id):
-    d = hf_cache_dir(model_id)
-    if not d.exists():
-        return False
-    snap = d / "snapshots"
-    if not snap.exists():
-        return False
-    for s in snap.iterdir():
-        if any((s / f).exists() for f in ["model.safetensors", "model.safetensors.index.json"]):
-            return True
-    return False
+    """Use HF Hub's canonical "do I have everything locally" check.
+
+    `snapshot_download(local_files_only=True)` succeeds iff every file the
+    repo declares is present in cache. Parsing index.json ourselves is fragile
+    because HF cache snapshots can contain stale manifests from prior revisions
+    that don't match the current weight file layout.
+    """
+    if model_id in _is_cached_memo:
+        return _is_cached_memo[model_id]
+    try:
+        from huggingface_hub import snapshot_download
+        snapshot_download(repo_id=model_id, local_files_only=True)
+        result = True
+    except Exception:
+        result = False
+    _is_cached_memo[model_id] = result
+    return result
 
 
 def run_id(model_key):

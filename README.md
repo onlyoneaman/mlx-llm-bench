@@ -63,6 +63,14 @@ Latest snapshot at `leaderboard.csv`. Top picks:
 | llama-3.2-3b | 80.9% | 93% | 57% | 0.27s | 1.8GB |
 | smollm3-3b | 66.2% | 80% | 39% | 0.38s | 1.8GB |
 
+## Annotation rubric
+
+For ambiguous "hard" examples, these tiebreakers were applied — published so anyone reading the dataset (or any LLM evaluated on it) can see how reasonable disagreements were resolved.
+
+- **Topic**: stories featuring a corporate transaction, earnings, market cap, or M&A are labeled **business** even when the subject is a tech company. ("Apple acquired AI startup for $200M" → business; "Apple's M5 chip launch" → tech.)
+- **Sentiment**: litotes ("not bad", "can't say I hated it") read as the *opposite* of the negated adjective and are labeled accordingly. Faint praise / comparative-against-worst patterns read by dominant signal — if the speaker is establishing the thing is still bad, the label is negative.
+- **Spam**: messages must carry multiple BEC markers (changed bank details, urgency to bypass approval, requests for gift cards, claimed authority, secrecy) to be labeled spam. A single suspicious framing alone stays ham.
+
 ## How comparability works
 
 - `leaderboard.json` carries `dataset_sha` — a hash of `data.json`. Different SHAs are not comparable.

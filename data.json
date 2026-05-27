@@ -30,7 +30,7 @@
   {"task": "topic", "text": "Apple announced the new M5 chip with improved neural engine performance.", "label": "tech"},
   {"task": "topic", "text": "OpenAI released a new model with multimodal reasoning capabilities.", "label": "tech"},
   {"task": "topic", "text": "Google's new Pixel phone features a custom Tensor G5 processor.", "label": "tech"},
-  {"task": "topic", "text": "Microsoft acquired a quantum computing startup for 2 billion dollars.", "label": "tech"},
+  {"task": "topic", "text": "Microsoft acquired a quantum computing startup for 2 billion dollars.", "label": "business"},
 
   {"task": "spam", "text": "CONGRATULATIONS! You've won $5,000! Click here to claim your prize NOW!", "label": "spam"},
   {"task": "spam", "text": "URGENT: Your account has been suspended. Verify your identity at this link immediately.", "label": "spam"},
@@ -50,10 +50,10 @@
   {"task": "sentiment", "text": "Oh great, another all-hands meeting that could have been a Slack message.", "label": "negative"},
   {"task": "sentiment", "text": "I wanted to love it, I really did.", "label": "negative"},
   {"task": "sentiment", "text": "Can't say I hated it.", "label": "positive"},
-  {"task": "sentiment", "text": "It's fine. I mean, it works.", "label": "negative"},
+  {"task": "sentiment", "text": "It's fine. I mean, it works.", "label": "positive"},
   {"task": "sentiment", "text": "Five stars - if I could give six I would.", "label": "positive"},
   {"task": "sentiment", "text": "Better than I expected, which isn't saying much.", "label": "negative"},
-  {"task": "sentiment", "text": "Not the worst purchase I've made this year.", "label": "negative"},
+  {"task": "sentiment", "text": "Three weeks in and I'm already shopping for a replacement.", "label": "negative"},
   {"task": "sentiment", "text": "After three months I'm still finding new things I love about this.", "label": "positive"},
 
   {"task": "topic", "text": "Apple acquired a small AI startup for $200 million in cash.", "label": "business"},
@@ -69,7 +69,7 @@
   {"task": "spam", "text": "Hi, this is Sarah from HR. Can you complete the security training module by Friday?", "label": "ham"},
   {"task": "spam", "text": "Hello dear, I hope you remember me from the conference. I have a confidential business proposal.", "label": "spam"},
   {"task": "spam", "text": "Hey - quick favor. I'm in a meeting. Can you grab me Apple gift cards from CVS?", "label": "spam"},
-  {"task": "spam", "text": "Following up on our agreement from last week. Please confirm wire transfer by EOD.", "label": "spam"},
+  {"task": "spam", "text": "Following up on our agreement - please wire $48,000 to the updated bank account by EOD. Keep this confidential, CFO is traveling.", "label": "spam"},
   {"task": "spam", "text": "Your DoorDash order #45239 was delivered. Hope you enjoyed it!", "label": "ham"},
   {"task": "spam", "text": "Re: invoice. Find attached the updated payment instructions for our account.", "label": "spam"}
 ]

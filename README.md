@@ -4,6 +4,8 @@ Local LLM classification benchmark for Apple Silicon Macs with limited unified m
 
 Built around the **16GB Mac mini class** — focuses on candidates that actually fit and stay fast on consumer hardware. Runs entirely offline once weights are cached.
 
+📊 **Dataset & leaderboard on HuggingFace:** [huggingface.co/datasets/onlyoneaman/mlx-llm-bench](https://huggingface.co/datasets/onlyoneaman/mlx-llm-bench)
+
 ## What it measures
 
 Three classification tasks with balanced easy + hard examples (68 total):

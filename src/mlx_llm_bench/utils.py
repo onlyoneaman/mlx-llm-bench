@@ -20,13 +20,26 @@ DATA_FILE = ROOT / "data.json"
 RUNS_DIR = ROOT / "runs"
 ARCHIVE_DIR = ROOT / "archive"
 
+import os as _os
+
+
+def _venv_python(env_var, default_path):
+    """Resolve a venv Python path, allowing env-var override.
+
+    bench shell entry sets these via MLX_LM_PYTHON / MLX_VLM_PYTHON. If the
+    var is unset we fall back to the pipx default. Path existence is checked
+    by callers (not here — the value is allowed to be a placeholder for
+    backends that aren't actively used)."""
+    return Path(_os.environ.get(env_var, default_path))
+
+
 VENVS = {
-    "mlx-lm": Path.home() / ".local/pipx/venvs/mlx-lm/bin/python",
-    "mlx-vlm": Path.home() / ".local/pipx/venvs/mlx-vlm/bin/python",
-    # `openai` backend speaks any OpenAI-compatible HTTP server (Apple FM via
-    # afm, Ollama, LM Studio, mlx-lm.server). No model load, no MLX dep —
-    # uses urllib from stdlib. Routed through mlx-lm venv since it exists.
-    "openai": Path.home() / ".local/pipx/venvs/mlx-lm/bin/python",
+    "mlx-lm": _venv_python("MLX_LM_PYTHON", Path.home() / ".local/pipx/venvs/mlx-lm/bin/python"),
+    "mlx-vlm": _venv_python("MLX_VLM_PYTHON", Path.home() / ".local/pipx/venvs/mlx-vlm/bin/python"),
+    # `openai` backend has no model weights to load and no MLX dep. Uses urllib
+    # from stdlib. Routed through whichever Python is convenient (mlx-lm venv
+    # by default since it exists anyway).
+    "openai": _venv_python("MLX_LM_PYTHON", Path.home() / ".local/pipx/venvs/mlx-lm/bin/python"),
 }
 
 TASKS = ["sentiment", "topic", "spam", "ifeval"]
@@ -81,10 +94,17 @@ def run_id(model_key):
 
 
 def dataset_sha():
-    """sha256(data.json) first 12 hex chars. Any change to the file (including
-    schema-only edits like adding fields) shifts this. Snapshots with
-    different SHAs are not directly comparable."""
-    return hashlib.sha256(DATA_FILE.read_bytes()).hexdigest()[:12]
+    """Content-based SHA over the canonical merged dataset.
+
+    Hashes the load_dataset_with_validators output (data.json + sidecar
+    validators) with sort_keys + compact separators. This is invariant to
+    JSON formatting and to the file-split refactor — only actual content
+    changes (task/text/label/difficulty/validators) move the SHA.
+    """
+    from mlx_llm_bench.rescore import load_dataset_with_validators
+    data = load_dataset_with_validators(DATA_FILE)
+    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
 
 
 def difficulty_index_sets():
@@ -164,10 +184,14 @@ def mcnemar_p(b, c):
 def stats(results, task=None, difficulty=None, easy_idx=None, hard_idx=None):
     """Compute accuracy + 95% Wilson CI + format-compliance over a subset.
 
-    Optional filters:
-      task         — restrict to one of TASKS
-      difficulty   — "easy" or "hard" (requires easy_idx / hard_idx)
-    Returns None if subset is empty.
+    For multi-seed runs: aggregates per (task, i) first using majority vote
+    across seeds, then computes the CI on the per-example outcomes (n=examples,
+    not n=examples*seeds). Treating each (example, seed) as independent at
+    temp=0 is wrong — the seeds are highly correlated. So Wilson CI is on
+    n=examples to avoid artificial sqrt(seeds) tightening.
+
+    For single-seed runs the per-example list has length 1 and the result
+    is identical to the simple total-correct / total-n calculation.
     """
     sub = results
     if task is not None:
@@ -178,19 +202,29 @@ def stats(results, task=None, difficulty=None, easy_idx=None, hard_idx=None):
         sub = [r for r in sub if r["i"] in (hard_idx or set())]
     if not sub:
         return None
-    correct = sum(r["correct"] for r in sub)
-    total = len(sub)
+
+    # Aggregate per (task, i) across seeds — majority-correct wins ties → pass.
+    by_ex = {}
+    for r in sub:
+        by_ex.setdefault((r["task"], r["i"]), []).append(r["correct"])
+    n_examples = len(by_ex)
+    correct_examples = sum(1 for v in by_ex.values() if sum(v) > len(v) / 2)
+
+    n_calls = len(sub)
     time_s = sum(r["time_s"] for r in sub)
     format_ok = sum(1 for r in sub if r.get("format_ok", True))
-    lo, hi = wilson_ci(correct, total)
+    lo, hi = wilson_ci(correct_examples, n_examples)
+    n_seeds = max(len(v) for v in by_ex.values()) if by_ex else 1
     return {
-        "acc": round(100 * correct / total, 1),
+        "acc": round(100 * correct_examples / n_examples, 1),
         "ci": [lo, hi],
-        "n": total,
-        "correct": correct,
+        "n": n_examples,
+        "n_calls": n_calls,
+        "n_seeds": n_seeds,
+        "correct": correct_examples,
         "time_s": round(time_s, 2),
-        "avg_s": round(time_s / total, 3),
-        "format_ok_rate": round(100 * format_ok / total, 1),
+        "avg_s": round(time_s / n_calls, 3),
+        "format_ok_rate": round(100 * format_ok / n_calls, 1),
     }
 
 

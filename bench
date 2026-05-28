@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # bench — entrypoint. Runs cli.py as a module via the mlx-lm venv's Python.
 # Per-run inference subprocesses to the right venv from cli.py.
+#
+# Override the Python interpreters with env vars if your setup differs from
+# the pipx defaults:
+#   MLX_LM_PYTHON   path to a Python with mlx-lm installed (default: pipx)
+#   MLX_VLM_PYTHON  path to a Python with mlx-vlm installed (default: pipx)
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PYTHONPATH="$DIR/src${PYTHONPATH:+:$PYTHONPATH}"
-exec "$HOME/.local/pipx/venvs/mlx-lm/bin/python" -m mlx_llm_bench.cli "$@"
+MLX_LM_PY="${MLX_LM_PYTHON:-$HOME/.local/pipx/venvs/mlx-lm/bin/python}"
+if [ ! -x "$MLX_LM_PY" ]; then
+    echo "bench: $MLX_LM_PY not found." >&2
+    echo "  Install: pipx install mlx-lm" >&2
+    echo "  Or set MLX_LM_PYTHON to a Python with mlx-lm installed." >&2
+    exit 127
+fi
+exec "$MLX_LM_PY" -m mlx_llm_bench.cli "$@"

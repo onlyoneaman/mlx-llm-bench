@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "mlx-llm-bench"
 version = "0.1.0"
 description = "Local LLM classification benchmark for Apple Silicon Macs with limited unified memory (e.g. 16GB Mac mini)."
-authors = [{ name = "Aman", url = "https://amankumar.ai" }]
+authors = [{ name = "Aman" }]
 license = { text = "MIT" }
 requires-python = ">=3.10"
 keywords = ["llm", "benchmark", "mlx", "apple-silicon", "local-ai", "classification"]
@@ -29,6 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 mlx = ["mlx-lm>=0.31"]
 vlm = ["mlx-vlm>=0.5"]
+dev = ["pytest>=7.0"]
 
 [project.scripts]
 mlx-llm-bench = "mlx_llm_bench.cli:main"

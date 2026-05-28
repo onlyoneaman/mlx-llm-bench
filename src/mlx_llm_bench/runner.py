@@ -88,7 +88,7 @@ def _seed_mlx(seed):
         pass
 
 
-def _record(i, ex, pred, raw, ok, format_ok, dt, seed, validator_results=None):
+def _record(i, ex, pred, raw, ok, format_ok, dt, seed, validator_results=None, prompt_sent=None):
     rec = {
         "i": i, "task": ex["task"], "text": ex["text"],
         "difficulty": ex.get("difficulty"),
@@ -98,6 +98,8 @@ def _record(i, ex, pred, raw, ok, format_ok, dt, seed, validator_results=None):
     }
     if validator_results is not None:
         rec["validators"] = validator_results
+    if prompt_sent is not None:
+        rec["prompt_sent"] = prompt_sent
     return rec
 
 
@@ -120,6 +122,35 @@ def _score(ex, raw, fmt):
     return pred, format_ok, pred == ex["label"], None
 
 
+def _run_loop(data, fmt, seeds, generate_fn, build_formatted_prompt):
+    """Common per-seed, per-example loop shared across all backends.
+
+    `generate_fn(formatted_prompt, seed)` returns raw model text.
+    `build_formatted_prompt(prompt_text)` returns the chat-template-wrapped
+    string the model actually receives. For openai backend it's a no-op since
+    the server handles templating.
+    """
+    results = []
+    for seed in seeds:
+        _seed_mlx(seed)
+        if len(seeds) > 1:
+            print(f"--- seed {seed} ---", flush=True)
+        for i, ex in enumerate(data):
+            prompt = _build_prompt(ex, fmt)
+            formatted = build_formatted_prompt(prompt)
+            t0 = time.time()
+            raw = generate_fn(formatted, seed)
+            dt = time.time() - t0
+            pred, format_ok, ok, vres = _score(ex, raw, fmt)
+            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres, prompt_sent=formatted))
+            mark = "OK" if ok else "XX"
+            fmt_flag = "" if format_ok else " !fmt"
+            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
+            pred_str = str(pred)[:18]
+            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
+    return results
+
+
 def run_mlx_lm(data, model_id, max_tokens, fmt, seeds):
     from mlx_lm import load, generate
     from mlx_lm.sample_utils import make_sampler
@@ -130,33 +161,18 @@ def run_mlx_lm(data, model_id, max_tokens, fmt, seeds):
     load_s = time.time() - t0
     print(f"[mlx-lm] loaded in {load_s:.1f}s", flush=True)
 
-    results = []
-    for seed in seeds:
-        _seed_mlx(seed)
+    def wrap(prompt):
+        msgs = [{"role": "user", "content": prompt}]
+        return tokenizer.apply_chat_template(
+            msgs, add_generation_prompt=True, tokenize=False, enable_thinking=False,
+        )
+
+    def gen(formatted, _seed):
         sampler = make_sampler(temp=0.0)
-        if len(seeds) > 1:
-            print(f"--- seed {seed} ---", flush=True)
-        for i, ex in enumerate(data):
-            prompt = _build_prompt(ex, fmt)
-            msgs = [{"role": "user", "content": prompt}]
-            formatted = tokenizer.apply_chat_template(
-                msgs, add_generation_prompt=True, tokenize=False,
-                enable_thinking=False,
-            )
-            t0 = time.time()
-            raw = generate(
-                model, tokenizer, prompt=formatted,
-                max_tokens=max_tokens, sampler=sampler, verbose=False,
-            )
-            dt = time.time() - t0
-            pred, format_ok, ok, vres = _score(ex, raw, fmt)
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
-            mark = "OK" if ok else "XX"
-            fmt_flag = "" if format_ok else " !fmt"
-            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
-            pred_str = str(pred)[:18]
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
-    return results, load_s
+        return generate(model, tokenizer, prompt=formatted,
+                        max_tokens=max_tokens, sampler=sampler, verbose=False)
+
+    return _run_loop(data, fmt, seeds, gen, wrap), load_s
 
 
 def run_mlx_vlm(data, model_id, max_tokens, fmt, seeds):
@@ -168,39 +184,23 @@ def run_mlx_vlm(data, model_id, max_tokens, fmt, seeds):
     model, processor = load(model_id)
     load_s = time.time() - t0
     print(f"[mlx-vlm] loaded in {load_s:.1f}s", flush=True)
-
     config = getattr(model, "config", None)
-    results = []
-    for seed in seeds:
-        _seed_mlx(seed)
-        if len(seeds) > 1:
-            print(f"--- seed {seed} ---", flush=True)
-        for i, ex in enumerate(data):
-            prompt = _build_prompt(ex, fmt)
-            formatted = apply_chat_template(
-                processor, config, prompt, num_images=0, enable_thinking=False,
-            )
-            t0 = time.time()
-            out = generate(
-                model, processor, formatted,
-                max_tokens=max_tokens, temperature=0.0, verbose=False,
-            )
-            dt = time.time() - t0
-            raw = out if isinstance(out, str) else getattr(out, "text", str(out))
-            pred, format_ok, ok, vres = _score(ex, raw, fmt)
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
-            mark = "OK" if ok else "XX"
-            fmt_flag = "" if format_ok else " !fmt"
-            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
-            pred_str = str(pred)[:18]
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
-    return results, load_s
+
+    def wrap(prompt):
+        return apply_chat_template(processor, config, prompt, num_images=0, enable_thinking=False)
+
+    def gen(formatted, _seed):
+        out = generate(model, processor, formatted,
+                       max_tokens=max_tokens, temperature=0.0, verbose=False)
+        return out if isinstance(out, str) else getattr(out, "text", str(out))
+
+    return _run_loop(data, fmt, seeds, gen, wrap), load_s
 
 
 def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
     """OpenAI-compatible HTTP backend — works for any server speaking
     /v1/chat/completions (Apple FM via afm, Ollama, LM Studio, mlx-lm.server).
-    """
+    Server is responsible for chat templating; we pass the bare prompt."""
     import json as _json
     import urllib.error
     import urllib.request
@@ -208,43 +208,32 @@ def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
     print(f"[openai] endpoint={endpoint} model={model_name}", flush=True)
     chat_url = endpoint.rstrip("/") + "/chat/completions"
 
-    results = []
-    for seed in seeds:
-        if len(seeds) > 1:
-            print(f"--- seed {seed} ---", flush=True)
-        for i, ex in enumerate(data):
-            prompt = _build_prompt(ex, fmt)
-            payload = {
-                "model": model_name,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
-                "temperature": 0.0,
-                "seed": seed,
-            }
-            req = urllib.request.Request(
-                chat_url,
-                data=_json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-            )
-            t0 = time.time()
-            try:
-                with urllib.request.urlopen(req, timeout=60) as resp:
-                    body = _json.loads(resp.read())
-                raw = body["choices"][0]["message"]["content"]
-            except urllib.error.URLError as e:
-                raw = f"__HTTP_ERROR__: {e}"
-            except Exception as e:
-                raw = f"__ERROR__: {e}"
-            dt = time.time() - t0
+    def wrap(prompt):
+        return prompt  # server applies its own chat template
 
-            pred, format_ok, ok, vres = _score(ex, raw, fmt)
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
-            mark = "OK" if ok else "XX"
-            fmt_flag = "" if format_ok else " !fmt"
-            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
-            pred_str = str(pred)[:18]
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
-    return results, 0.0
+    def gen(formatted, seed):
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": formatted}],
+            "max_tokens": max_tokens,
+            "temperature": 0.0,
+            "seed": seed,
+        }
+        req = urllib.request.Request(
+            chat_url,
+            data=_json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                body = _json.loads(resp.read())
+            return body["choices"][0]["message"]["content"]
+        except urllib.error.URLError as e:
+            return f"__HTTP_ERROR__: {e}"
+        except Exception as e:
+            return f"__ERROR__: {e}"
+
+    return _run_loop(data, fmt, seeds, gen, wrap), 0.0
 
 
 def main():

@@ -25,29 +25,32 @@ After reading these you should know what changes for any request.
 
 ```
 mlx-llm-bench/
-├── bench                  shell entrypoint -> mlx-lm venv python -> cli.py
-├── data.json              68 labeled examples (sentiment + topic + spam)
-├── models.json            9 models with HF repo, backend, size, notes
-├── leaderboard.json       canonical snapshot (committed)
-├── leaderboard.csv        flat snapshot (committed)
-├── runs/                  per-run audit trail (gitignored, local only)
-├── archive/               historical leaderboard snapshots (gitignored)
+├── bench                       shell entrypoint -> Python venv -> cli.py
+├── data.json                   100 classification + 25 IFEval examples (n=125)
+├── ifeval_validators.json      validators for IFEval items, keyed by index
+├── models.json                 16 models with HF repo, backend, size, notes
+├── leaderboard.json            canonical snapshot (committed)
+├── leaderboard.csv             flat snapshot (committed)
+├── runs/                       per-run audit trail (gitignored, local only)
+├── archive/                    historical leaderboard snapshots (gitignored)
 ├── src/mlx_llm_bench/
-│   ├── cli.py             argparse + subcommand handlers + run lifecycle
-│   ├── runner.py          loads model, runs prompts, parses labels (per-venv)
-│   └── utils.py           pure helpers: registry, cache, hardware, SHA, stats
+│   ├── cli.py                  argparse + subcommand handlers + run lifecycle
+│   ├── runner.py               loads model, runs prompts, records raw outputs
+│   ├── rescore.py              canonical scoring (parse_answer, validators)
+│   └── utils.py                pure helpers: registry, cache, hardware, SHA, stats
 ├── pyproject.toml
-├── README.md              public-facing
-├── AGENTS.md              this file
-└── LICENSE                MIT
+├── README.md                   public-facing
+├── AGENTS.md                   this file
+└── LICENSE                     MIT
 ```
 
 ## Environment assumptions
 
 - macOS on Apple Silicon. mlx-lm and mlx-vlm are installed in **two separate pipx venvs**:
-  - `~/.local/pipx/venvs/mlx-lm/bin/python`
-  - `~/.local/pipx/venvs/mlx-vlm/bin/python`
+  - `~/.local/pipx/venvs/mlx-lm/bin/python` (override with `MLX_LM_PYTHON`)
+  - `~/.local/pipx/venvs/mlx-vlm/bin/python` (override with `MLX_VLM_PYTHON`)
 - `bench` shell script dispatches via the mlx-lm venv. `cli.py` then subprocesses to the correct venv per model based on `models.json[<key>]["backend"]`.
+- Subprocess timeout defaults to 1 hour per model; override with `BENCH_RUN_TIMEOUT_S`.
 - `huggingface_hub` is in both venvs. `hf` / `huggingface-cli` is its own pipx app.
 
 ## Common tasks — how to act on user requests
@@ -113,13 +116,47 @@ Past audits caught these inconsistencies: lines 33/59 had identical-structure ac
 
 ### "Add a new test example" / "Test with harder X cases"
 
-1. Edit `data.json`. Each example is `{"task", "text", "label", "difficulty"}`. The `difficulty` field is `"easy"` or `"hard"` — **set it explicitly**; the harness does not infer from position.
-2. Keep the file format stable: one example per line, blank line between task+difficulty blocks. The convention is easy block first, hard block at the end of each task, but ordering does not affect scoring — `difficulty` does.
-3. **Changing `data.json` changes its SHA** — old leaderboard entries are no longer directly comparable. After editing:
-   - `./bench run all --cached` to refresh every locally-cached model
-   - `./bench export` to write a new `leaderboard.json` with the new `dataset_sha`
-   - Commit `data.json` + `leaderboard.json` + `leaderboard.csv` together.
-4. Cross-task balance matters less than within-task class balance. Keep labels roughly balanced inside each task.
+**Classification items (sentiment / topic / spam)**:
+1. Edit `data.json`. Each row is `{"task", "text", "label", "difficulty"}`. The `difficulty` field is `"easy"` or `"hard"` — **set it explicitly**; the harness does not infer from position.
+2. Keep the file format stable: one example per line, blank line between task+difficulty blocks.
+3. Cross-task balance matters less than within-task class balance. Keep labels roughly balanced inside each task.
+
+**IFEval items**:
+1. Add to the IFEval block in `data.json` with `"task": "ifeval"`, `"label": "ifeval"` (placeholder, unused), and `"text"` = the full prompt the model receives.
+2. Add the validators to `ifeval_validators.json` keyed by the row's index (as a string): `"125": [{"type": "...", ...}, ...]`. An example passes iff ALL its validators pass.
+3. Available validator types: see "IFEval validators" section below.
+
+**Whatever you change**, dataset_sha shifts. After editing:
+- `./bench rescore` — applies current scoring to any already-saved run results (no rerun needed if raw outputs are still valid)
+- `./bench run all --cached` — refresh every locally-cached model
+- `./bench export` — write new `leaderboard.json` with the new `dataset_sha`
+- Commit `data.json` + `ifeval_validators.json` + `leaderboard.*` together.
+
+### IFEval validators
+
+`ifeval_validators.json` maps `str(i) → [validators]`. Each validator is `{"type": "<name>", ...params}`. Implemented in `rescore.py`:
+
+| Type | Params | Pass condition |
+|---|---|---|
+| `word_count_exact` | `n` | `\b[\w']+\b` regex word count equals `n` |
+| `word_count_max` | `n` | word count ≤ `n` |
+| `word_count_min` | `n` | word count ≥ `n` |
+| `contains_word` | `word` | response contains word (case-insensitive, whole word) |
+| `not_contains_word` | `word` | response does not contain word |
+| `not_contains_letter` | `letter` | letter not present anywhere |
+| `not_contains_chars` | `chars` | none of the characters present |
+| `regex_match` | `pattern` | `re.match(pattern, raw.strip())` succeeds |
+| `starts_with` | `prefix` | stripped response begins with prefix |
+| `ends_with` | `suffix` | stripped response ends with suffix |
+| `json_array_length` | `n` | response contains a JSON array of length `n` |
+| `json_has_keys` | `keys` | response contains a JSON object with all listed keys |
+| `exact_word_set` | `options` | stripped-to-letters response equals one of options (case-insensitive) |
+| `sentence_count_exact` | `n` | count of sentences (.!? split) equals `n` |
+| `paragraph_count_exact` | `n` | count of paragraphs (`\n\n` split) equals `n` |
+| `line_count_exact` | `n` | count of non-empty lines equals `n` |
+| `contains_exact` | `text` | exact substring present |
+
+To add a new validator type: implement `_v_<name>(raw, v)` in `rescore.py` and register it in `_VALIDATORS`. Update the table above.
 
 ### "Run the benchmark"
 
@@ -131,9 +168,11 @@ Past audits caught these inconsistencies: lines 33/59 had identical-structure ac
 
 ### "Compare two models" / "Compare these runs"
 
-- `./bench history` to find run IDs.
-- `./bench compare <id1> <id2>` for accuracy delta + paired McNemar exact two-sided p-value + miss overlap. The McNemar result is the headline — at n=68, Wilson CIs are wide enough that bare accuracy deltas overclaim.
-- `./bench show <id>` for one run's full markdown summary, including per-task and easy/hard breakdowns with 95% Wilson CIs.
+- `./bench history` lists past runs with accuracy CI + format-compliance + wall time.
+- `./bench compare <id1> <id2>` for accuracy delta + paired McNemar exact two-sided p-value + miss overlap. The McNemar result is the headline — at n=125, Wilson CIs are still ±7 pp, so bare accuracy deltas overclaim.
+- `./bench show <id>` for one run's full markdown summary (per-task + easy/hard breakdowns with Wilson CIs).
+- `./bench inspect <id>` shows raw model outputs for misses. Filters: `--task ifeval`, `--i N`, `--all`. Add `--prompt` to also see the chat-template-wrapped prompt the model actually received.
+- `./bench rescore [--sha S]` re-applies current scoring to saved results in place. Use after improving `rescore.py` — no model re-runs needed because raw outputs are deterministic at temp=0.
 
 ### "Publish updated results"
 
@@ -154,6 +193,7 @@ Never `git add -A` blindly — it would catch `runs/` and `archive/` if .gitigno
 `YYYYMMDD-HHMMSS_<model-key>` — sortable, parseable. Stored as `runs/<run_id>/{meta.json,results.json,summary.md}`.
 
 ### Dataset SHA
+Content-based hash: `sha256(json.dumps(load_dataset_with_validators(data), sort_keys=True, separators=(",",":")))`, first 12 hex chars. Invariant to JSON formatting and the data.json / ifeval_validators.json split — only actual content changes (task/text/label/difficulty/validators) move the SHA.
 First 12 hex chars of `sha256(data.json)`. Embedded in `leaderboard.json` and in `archive/leaderboard-<ts>-<sha>.json` filenames. If two snapshots have different SHAs, do not compare their numbers — the dataset diverged.
 
 ### Hardware fingerprint

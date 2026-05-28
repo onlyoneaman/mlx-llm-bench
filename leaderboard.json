@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "dataset_sha": "4546a1df566c",
+  "dataset_sha": "2c34076d55d3",
   "dataset_file": "data.json",
   "dataset_count": 125,
   "hardware": {
@@ -11,7 +11,7 @@
     "cpu_cores": "10 (4 performance and 6 efficiency)",
     "memory": "16 GB"
   },
-  "exported_at": "2026-05-28T18:02:52",
+  "exported_at": "2026-05-28T18:32:45",
   "methodology": {
     "temperature": 0.0,
     "max_tokens": 250,
@@ -47,7 +47,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-161357_gemma3-12b-qat",
       "run_date": "2026-05-28"
     },
@@ -109,7 +109,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-165614_llama-3.2-3b",
       "run_date": "2026-05-28"
     },
@@ -140,7 +140,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-161209_gemma4-e4b",
       "run_date": "2026-05-28"
     },
@@ -171,7 +171,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-165749_ministral-3-8b",
       "run_date": "2026-05-28"
     },
@@ -264,7 +264,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-175652_llama-3.1-8b",
       "run_date": "2026-05-28"
     },
@@ -295,7 +295,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-160649_qwen3-8b",
       "run_date": "2026-05-28"
     },
@@ -357,7 +357,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-161841_gemma3-4b-qat",
       "run_date": "2026-05-28"
     },
@@ -388,7 +388,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-170639_phi4-mini-instruct",
       "run_date": "2026-05-28"
     },
@@ -419,7 +419,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-160928_qwen2.5-coder-7b",
       "run_date": "2026-05-28"
     },
@@ -481,7 +481,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-173127_mistral-nemo-minitron-8b",
       "run_date": "2026-05-28"
     },
@@ -512,7 +512,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-163317_smollm3-3b",
       "run_date": "2026-05-28"
     },
@@ -543,7 +543,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-170842_nemotron-nano-9b",
       "run_date": "2026-05-28"
     },
@@ -605,7 +605,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-172951_hermes-3-llama-3.2-3b",
       "run_date": "2026-05-28"
     },
@@ -667,7 +667,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-163506_deepseek-r1-distill-7b",
       "run_date": "2026-05-28"
     },
@@ -729,7 +729,7 @@
         1
       ],
       "seed_std_acc": null,
-      "dataset_sha_at_run": "4546a1df566c",
+      "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-162036_phi4-mini-reasoning",
       "run_date": "2026-05-28"
     },

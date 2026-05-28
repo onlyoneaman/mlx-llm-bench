@@ -85,7 +85,10 @@ def cmd_pull(args):
     ])
 
 
-def _do_run(model_key, seeds=(1,), fmt="text"):
+DEFAULT_RUN_TIMEOUT_S = int(os.environ.get("BENCH_RUN_TIMEOUT_S", 3600))
+
+
+def _do_run(model_key, seeds=(1,), fmt="text", timeout_s=DEFAULT_RUN_TIMEOUT_S):
     try:
         m = get_model(model_key)
     except KeyError as e:
@@ -142,7 +145,16 @@ def _do_run(model_key, seeds=(1,), fmt="text"):
     ]
     if backend == "openai":
         cmd += ["--endpoint", m["endpoint"], "--remote-model", m.get("remote_model", model_key)]
-    rc = subprocess.call(cmd)
+    try:
+        rc = subprocess.call(cmd, timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        wall_s = time.time() - t0
+        print(f"FAILED — timeout after {timeout_s}s. Override with BENCH_RUN_TIMEOUT_S env var.")
+        meta["status"] = "timeout"
+        meta["wall_s"] = round(wall_s, 1)
+        meta["timeout_s"] = timeout_s
+        (rdir / "meta.json").write_text(json.dumps(meta, indent=2))
+        return rid
     wall_s = time.time() - t0
     if rc != 0:
         print(f"FAILED (rc={rc})")
@@ -245,18 +257,36 @@ def _write_summary(rdir):
     (rdir / "summary.md").write_text("\n".join(lines))
 
 
-def _all_runs():
+_all_runs_cache = None
+
+
+def _all_runs(force_reload=False):
+    """Scan runs/ and return parsed meta.json contents. Cached per CLI
+    invocation since multiple subcommands (history, export, report) iterate
+    the same list. Pass force_reload=True after writing new runs."""
+    global _all_runs_cache
+    if _all_runs_cache is not None and not force_reload:
+        return _all_runs_cache
     if not RUNS_DIR.exists():
-        return []
+        _all_runs_cache = []
+        return _all_runs_cache
     runs = []
     for d in sorted(RUNS_DIR.iterdir()):
+        if not d.is_dir():
+            continue
         meta_p = d / "meta.json"
         res_p = d / "results.json"
-        if meta_p.exists():
+        if not meta_p.exists():
+            continue
+        try:
             m = json.loads(meta_p.read_text())
-            m["_dir"] = d
-            m["_has_results"] = res_p.exists()
-            runs.append(m)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"warning: skipping {d.name} — meta.json unreadable: {e}", file=sys.stderr)
+            continue
+        m["_dir"] = d
+        m["_has_results"] = res_p.exists()
+        runs.append(m)
+    _all_runs_cache = runs
     return runs
 
 
@@ -267,17 +297,23 @@ def cmd_history(args):
     if not runs:
         print("no runs yet")
         return
-    print(f"{'RUN_ID':40s} {'MODEL':22s} {'FMT':>5s}  {'ACC':>7s}  {'TIME':>7s}  STATUS")
-    print("-" * 105)
+    print(f"{'RUN_ID':40s} {'MODEL':22s} {'FMT':>5s}  {'ACC (95% CI)':>16s}  {'fmt_ok':>6s}  {'TIME':>7s}  STATUS")
+    print("-" * 120)
     for r in runs:
-        acc = "-"
+        acc_str = "-"
+        fmt_ok_str = "-"
         if r.get("_has_results"):
-            res = json.loads((r["_dir"] / "results.json").read_text())
-            s = stats(res["results"])
-            acc = f"{s['acc']:.1f}%" if s else "-"
+            try:
+                res = json.loads((r["_dir"] / "results.json").read_text())
+                s = stats(res["results"])
+                if s:
+                    acc_str = f"{s['acc']:.1f}% [{s['ci'][0]:.0f}-{s['ci'][1]:.0f}]"
+                    fmt_ok_str = f"{s['format_ok_rate']:.0f}%"
+            except (json.JSONDecodeError, OSError):
+                acc_str = "(err)"
         fmt = r.get("format", "text")[:5]
         wall = f"{r.get('wall_s', 0):.0f}s"
-        print(f"{r['run_id']:40s} {r.get('model_key', '?'):22s} {fmt:>5s}  {acc:>7s}  {wall:>7s}  {r.get('status', '?')}")
+        print(f"{r['run_id']:40s} {r.get('model_key', '?'):22s} {fmt:>5s}  {acc_str:>16s}  {fmt_ok_str:>6s}  {wall:>7s}  {r.get('status', '?')}")
 
 
 def cmd_show(args):
@@ -374,7 +410,7 @@ def cmd_inspect(args):
         if not matched:
             sys.exit(f"no example with i={args.i}")
         for r in matched:
-            _print_record(r, full=True)
+            _print_record(r, full=True, show_prompt=args.prompt)
         return
 
     # Default: show misses (optionally filter by task)
@@ -389,16 +425,23 @@ def cmd_inspect(args):
     print(f"showing {len(rows)} row(s){' (misses only)' if not args.all else ''}{f' filter task={args.task}' if args.task else ''}")
     print()
     for r in rows:
-        _print_record(r, full=False)
+        _print_record(r, full=False, show_prompt=args.prompt)
 
 
-def _print_record(r, full=False):
+def _print_record(r, full=False, show_prompt=False):
     """Compact human-readable print of one result row."""
     mark = "OK" if r["correct"] else "XX"
     fmt = "" if r.get("format_ok", True) else " !fmt"
     diff = r.get("difficulty", "?")
     print(f"[i={r['i']:>3} {r['task']:9s}/{diff:4s} seed={r.get('seed','?')}] {mark}{fmt}  label={r.get('label')}  pred={r.get('pred')}  ({r.get('time_s')}s)")
     print(f"  TEXT: {r['text']}")
+    if show_prompt:
+        p_sent = r.get("prompt_sent")
+        if p_sent:
+            indent = chr(10) + "          "
+            print(f"  PROMPT: {p_sent.replace(chr(10), indent)}")
+        else:
+            print("  PROMPT: (not recorded — this run pre-dates prompt_sent capture)")
     raw = r.get("raw", "")
     if not full and len(raw) > 400:
         raw_show = raw[:400] + f"\n  ... [truncated, {len(raw)} chars total]"
@@ -657,6 +700,7 @@ def main():
     sp.add_argument("--task", default=None, help="filter to one task (sentiment/topic/spam/ifeval)")
     sp.add_argument("--i", type=int, default=None, help="show one example by dataset index")
     sp.add_argument("--all", action="store_true", help="show correct items too, not just misses")
+    sp.add_argument("--prompt", action="store_true", help="also show the chat-template-wrapped prompt as the model received it")
     sp.set_defaults(fn=cmd_inspect)
 
     sp = sub.add_parser("compare", help="compare two runs (paired McNemar)")

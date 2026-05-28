@@ -237,7 +237,7 @@ Gemma 1/2/3/3n use Google's Gemma Terms (not OSI-open). Gemma 4 is Apache 2.0. Q
 
 ## What never to do
 
-- Don't commit `runs/`, `archive/`, or `RESULTS.md` (already gitignored).
+- Don't commit `runs/` or `archive/` (already gitignored).
 - Don't hardcode `/Users/onlyoneaman/...` paths anywhere. Use `Path.home()` or project-relative.
 - Don't add models that don't fit 16 GB unified memory unless the user explicitly wants a "doesn't fit" baseline.
 - Don't `git push --force` to `main`.

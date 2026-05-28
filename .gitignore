@@ -1,6 +1,5 @@
 # Per-run artifacts (full audit trail stays local)
 runs/
-RESULTS.md
 
 # Historical leaderboard snapshots (timestamped) stay local
 archive/

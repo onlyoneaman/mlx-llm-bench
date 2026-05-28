@@ -50,7 +50,6 @@ cd mlx-llm-bench
 | `bench history` | List past runs with accuracy |
 | `bench show <run-id>` | Print one run's full summary |
 | `bench compare <id1> <id2>` | Side-by-side accuracy + miss diff |
-| `bench report` | Generate `RESULTS.md` (latest per model) |
 | `bench export` | Write `leaderboard.{json,csv}` for committing |
 | `bench rescore [--sha S]` | Re-apply scoring to saved results in place (no re-runs needed) |
 | `bench inspect <run-id> [--task T] [--i N]` | Show raw model outputs for inspection (misses by default) |

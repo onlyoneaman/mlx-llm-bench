@@ -264,16 +264,14 @@ def main():
     args = p.parse_args()
 
     data = load_dataset_with_validators(args.data)
-    if args.backend == "mlx-lm":
-        results, load_s = run_mlx_lm(data, args.model_id, args.max_tokens, args.format, args.seeds)
-    elif args.backend == "mlx-vlm":
-        results, load_s = run_mlx_vlm(data, args.model_id, args.max_tokens, args.format, args.seeds)
-    elif args.backend == "openai":
+    common = (args.max_tokens, args.format, args.seeds)
+    if args.backend == "openai":
         if not args.endpoint or not args.remote_model:
             raise SystemExit("openai backend requires --endpoint and --remote-model")
-        results, load_s = run_openai(data, args.endpoint, args.remote_model, args.max_tokens, args.format, args.seeds)
+        results, load_s = run_openai(data, args.endpoint, args.remote_model, *common)
     else:
-        raise SystemExit(f"unknown backend: {args.backend}")
+        runner = {"mlx-lm": run_mlx_lm, "mlx-vlm": run_mlx_vlm}[args.backend]
+        results, load_s = runner(data, args.model_id, *common)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps({

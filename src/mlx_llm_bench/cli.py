@@ -20,9 +20,10 @@ from pathlib import Path
 
 from mlx_llm_bench.utils import (
     ARCHIVE_DIR, DATA_FILE, ROOT, RUNS_DIR, TASKS, VENVS,
+    breakdown,
     dataset_sha,
     detect_hardware,
-    difficulty_index_sets,
+    fmt_acc,
     get_model,
     is_cached,
     load_models,
@@ -200,7 +201,6 @@ def _write_summary(rdir):
     meta = json.loads((rdir / "meta.json").read_text())
     res = json.loads((rdir / "results.json").read_text())
     rs = res["results"]
-    easy_idx, hard_idx = difficulty_index_sets()
     overall = stats(rs)
     seed_acc = seed_stats(rs)
 
@@ -216,7 +216,7 @@ def _write_summary(rdir):
         f"- Wall time: {meta.get('wall_s', '?')}s",
         f"- Load time: {res['load_s']:.1f}s",
         "",
-        f"## Overall: {overall['correct']}/{overall['n']} = **{overall['acc']:.1f}%** [{overall['ci'][0]:.1f}–{overall['ci'][1]:.1f}] · format_ok={overall['format_ok_rate']:.0f}%",
+        f"## Overall: {overall['correct']}/{overall['n']} = **{fmt_acc(overall)}** · format_ok={overall['format_ok_rate']:.0f}%",
         "",
         f"Inference: {overall['time_s']:.1f}s ({overall['avg_s']:.2f}s/example)",
         "",
@@ -238,16 +238,14 @@ def _write_summary(rdir):
     for t in TASKS:
         s = stats(rs, task=t)
         if s:
-            lines.append(
-                f"| {t} | {s['correct']}/{s['n']} = {s['acc']:.1f}% [{s['ci'][0]:.1f}–{s['ci'][1]:.1f}] | {s['format_ok_rate']:.0f}% | {s['avg_s']:.2f}s |"
-            )
+            lines.append(f"| {t} | {s['correct']}/{s['n']} = {fmt_acc(s)} | {s['format_ok_rate']:.0f}% | {s['avg_s']:.2f}s |")
     lines += ["", "## Easy vs Hard", "",
               "| Difficulty | Accuracy (95% CI) |",
               "|---|---|"]
     for label in ("easy", "hard"):
-        s = stats(rs, difficulty=label, easy_idx=easy_idx, hard_idx=hard_idx)
+        s = stats(rs, difficulty=label)
         if s:
-            lines.append(f"| {label} | {s['correct']}/{s['n']} = {s['acc']:.1f}% [{s['ci'][0]:.1f}–{s['ci'][1]:.1f}] |")
+            lines.append(f"| {label} | {s['correct']}/{s['n']} = {fmt_acc(s)} |")
     lines += ["", "## Misses", ""]
     for r in rs:
         if not r["correct"]:
@@ -257,25 +255,16 @@ def _write_summary(rdir):
     (rdir / "summary.md").write_text("\n".join(lines))
 
 
-_all_runs_cache = None
-
-
-def _all_runs(force_reload=False):
-    """Scan runs/ and return parsed meta.json contents. Cached per CLI
-    invocation since multiple subcommands (history, export, report) iterate
-    the same list. Pass force_reload=True after writing new runs."""
-    global _all_runs_cache
-    if _all_runs_cache is not None and not force_reload:
-        return _all_runs_cache
+def _all_runs():
+    """Scan runs/ and return parsed meta.json contents. One pass per CLI
+    invocation. Malformed meta.json files are skipped with a stderr warning."""
     if not RUNS_DIR.exists():
-        _all_runs_cache = []
-        return _all_runs_cache
+        return []
     runs = []
     for d in sorted(RUNS_DIR.iterdir()):
         if not d.is_dir():
             continue
         meta_p = d / "meta.json"
-        res_p = d / "results.json"
         if not meta_p.exists():
             continue
         try:
@@ -284,9 +273,8 @@ def _all_runs(force_reload=False):
             print(f"warning: skipping {d.name} — meta.json unreadable: {e}", file=sys.stderr)
             continue
         m["_dir"] = d
-        m["_has_results"] = res_p.exists()
+        m["_has_results"] = (d / "results.json").exists()
         runs.append(m)
-    _all_runs_cache = runs
     return runs
 
 
@@ -297,8 +285,8 @@ def cmd_history(args):
     if not runs:
         print("no runs yet")
         return
-    print(f"{'RUN_ID':40s} {'MODEL':22s} {'FMT':>5s}  {'ACC (95% CI)':>16s}  {'fmt_ok':>6s}  {'TIME':>7s}  STATUS")
-    print("-" * 120)
+    print(f"{'RUN_ID':40s} {'MODEL':22s} {'FMT':>5s}  {'ACC (95% CI)':>18s}  {'fmt_ok':>6s}  {'TIME':>7s}  STATUS")
+    print("-" * 122)
     for r in runs:
         acc_str = "-"
         fmt_ok_str = "-"
@@ -307,13 +295,13 @@ def cmd_history(args):
                 res = json.loads((r["_dir"] / "results.json").read_text())
                 s = stats(res["results"])
                 if s:
-                    acc_str = f"{s['acc']:.1f}% [{s['ci'][0]:.0f}-{s['ci'][1]:.0f}]"
+                    acc_str = fmt_acc(s)
                     fmt_ok_str = f"{s['format_ok_rate']:.0f}%"
             except (json.JSONDecodeError, OSError):
                 acc_str = "(err)"
         fmt = r.get("format", "text")[:5]
         wall = f"{r.get('wall_s', 0):.0f}s"
-        print(f"{r['run_id']:40s} {r.get('model_key', '?'):22s} {fmt:>5s}  {acc_str:>16s}  {fmt_ok_str:>6s}  {wall:>7s}  {r.get('status', '?')}")
+        print(f"{r['run_id']:40s} {r.get('model_key', '?'):22s} {fmt:>5s}  {acc_str:>18s}  {fmt_ok_str:>6s}  {wall:>7s}  {r.get('status', '?')}")
 
 
 def cmd_show(args):
@@ -333,32 +321,21 @@ def cmd_compare(args):
     rb = json.loads(b.read_text())
     rs_a = ra["results"]
     rs_b = rb["results"]
-    easy_idx, hard_idx = difficulty_index_sets()
 
     print(f"\n{args.id1}  vs  {args.id2}\n")
+    def line(label, ta, tb):
+        print(f"  {label:10s}  {fmt_acc(ta)}  vs  {fmt_acc(tb)}   delta {tb['acc']-ta['acc']:+.1f}")
+
     sa, sb = stats(rs_a), stats(rs_b)
-    print(
-        f"{'Overall':12s}  {sa['acc']:5.1f}% [{sa['ci'][0]:.1f}–{sa['ci'][1]:.1f}]  "
-        f"vs  {sb['acc']:5.1f}% [{sb['ci'][0]:.1f}–{sb['ci'][1]:.1f}]   "
-        f"delta {sb['acc']-sa['acc']:+.1f}"
-    )
+    line("Overall", sa, sb)
     for t in TASKS:
         ta, tb = stats(rs_a, task=t), stats(rs_b, task=t)
         if ta and tb:
-            print(
-                f"  {t:10s}  {ta['acc']:5.1f}% [{ta['ci'][0]:.1f}–{ta['ci'][1]:.1f}]  "
-                f"vs  {tb['acc']:5.1f}% [{tb['ci'][0]:.1f}–{tb['ci'][1]:.1f}]   "
-                f"delta {tb['acc']-ta['acc']:+.1f}"
-            )
+            line(t, ta, tb)
     for label in ("easy", "hard"):
-        ta = stats(rs_a, difficulty=label, easy_idx=easy_idx, hard_idx=hard_idx)
-        tb = stats(rs_b, difficulty=label, easy_idx=easy_idx, hard_idx=hard_idx)
+        ta, tb = stats(rs_a, difficulty=label), stats(rs_b, difficulty=label)
         if ta and tb:
-            print(
-                f"  {label:10s}  {ta['acc']:5.1f}% [{ta['ci'][0]:.1f}–{ta['ci'][1]:.1f}]  "
-                f"vs  {tb['acc']:5.1f}% [{tb['ci'][0]:.1f}–{tb['ci'][1]:.1f}]   "
-                f"delta {tb['acc']-ta['acc']:+.1f}"
-            )
+            line(label, ta, tb)
 
     sha_a = json.loads((RUNS_DIR / args.id1 / "meta.json").read_text()).get("dataset_sha")
     sha_b = json.loads((RUNS_DIR / args.id2 / "meta.json").read_text()).get("dataset_sha")
@@ -412,54 +389,51 @@ def cmd_inspect(args):
     meta = json.loads((RUNS_DIR / args.run_id / "meta.json").read_text())
 
     if args.i is not None:
-        # Show one example fully across all seeds it appears in
         matched = [r for r in rs if r["i"] == args.i]
         if not matched:
             sys.exit(f"no example with i={args.i}")
-        for r in matched:
-            _print_record(r, full=True, show_prompt=args.prompt)
-        return
-
-    # Default: show misses (optionally filter by task)
-    rows = rs if args.all else [r for r in rs if not r["correct"]]
-    if args.task:
-        rows = [r for r in rows if r["task"] == args.task]
-    if not rows:
-        print("no rows match filter")
-        return
-
-    print(f"# {meta['run_id']}  ({meta.get('model_key','?')}, {meta.get('format','text')}, n={len(rs)})")
-    print(f"showing {len(rows)} row(s){' (misses only)' if not args.all else ''}{f' filter task={args.task}' if args.task else ''}")
-    print()
+        rows = matched
+    else:
+        rows = rs if args.all else [r for r in rs if not r["correct"]]
+        if args.task:
+            rows = [r for r in rows if r["task"] == args.task]
+        if not rows:
+            print("no rows match filter")
+            return
+        print(f"# {meta['run_id']}  ({meta.get('model_key','?')}, {meta.get('format','text')}, n={len(rs)})")
+        print(f"showing {len(rows)} row(s){' (misses only)' if not args.all else ''}{f' filter task={args.task}' if args.task else ''}")
+        print()
     for r in rows:
-        _print_record(r, full=False, show_prompt=args.prompt)
+        _print_record(r, show_prompt=args.prompt)
 
 
-def _print_record(r, full=False, show_prompt=False):
-    """Compact human-readable print of one result row."""
+def _print_record(r, show_prompt=False, max_raw=400):
+    """Compact human-readable print of one result row.
+
+    Raw output is truncated at `max_raw` chars; the only caller-side controllable
+    knob (cmd_inspect) doesn't currently set this. Reasoning models produce
+    multi-KB raw outputs that nobody wants spammed verbatim — 400 chars is
+    enough to see the chain-of-thought signature.
+    """
     mark = "OK" if r["correct"] else "XX"
     fmt = "" if r.get("format_ok", True) else " !fmt"
     diff = r.get("difficulty", "?")
     print(f"[i={r['i']:>3} {r['task']:9s}/{diff:4s} seed={r.get('seed','?')}] {mark}{fmt}  label={r.get('label')}  pred={r.get('pred')}  ({r.get('time_s')}s)")
     print(f"  TEXT: {r['text']}")
     if show_prompt:
-        p_sent = r.get("prompt_sent")
-        if p_sent:
-            indent = chr(10) + "          "
-            print(f"  PROMPT: {p_sent.replace(chr(10), indent)}")
+        p = r.get("prompt_sent")
+        if p:
+            print("  PROMPT: " + p.replace("\n", "\n          "))
         else:
             print("  PROMPT: (not recorded — this run pre-dates prompt_sent capture)")
     raw = r.get("raw", "")
-    if not full and len(raw) > 400:
-        raw_show = raw[:400] + f"\n  ... [truncated, {len(raw)} chars total]"
-    else:
-        raw_show = raw
-    print(f"  RAW : {raw_show.replace(chr(10), chr(10) + '        ')}")
+    if len(raw) > max_raw:
+        raw = raw[:max_raw] + f"\n  ... [truncated, {len(r['raw'])} chars total]"
+    print("  RAW : " + raw.replace("\n", "\n        "))
     if "validators" in r:
-        print(f"  VALIDATORS:")
+        print("  VALIDATORS:")
         for v in r["validators"]:
-            v_mark = "✓" if v["pass"] else "✗"
-            print(f"    {v_mark} {v['type']}")
+            print(f"    {'✓' if v['pass'] else '✗'} {v['type']}")
     print()
 
 
@@ -543,41 +517,40 @@ def cmd_export(args):
 
     models = load_models()
     hw = detect_hardware()
-    easy_idx, hard_idx = difficulty_index_sets()
 
     entries = []
     for (key, fmt), r in latest.items():
         res = json.loads((r["_dir"] / "results.json").read_text())
-        rs = res["results"]
-        overall = stats(rs)
-        per_task = {t: stats(rs, task=t) for t in TASKS}
-        easy_s = stats(rs, difficulty="easy", easy_idx=easy_idx, hard_idx=hard_idx)
-        hard_s = stats(rs, difficulty="hard", easy_idx=easy_idx, hard_idx=hard_idx)
-        seed_acc = seed_stats(rs)
+        b = breakdown(res["results"])
+        overall, per_task = b["overall"], b["per_task"]
+        easy_s, hard_s = b["easy"], b["hard"]
+        seed_acc = seed_stats(res["results"])
         seed_std = None
         if seed_acc:
             vals = list(seed_acc.values())
             mean = sum(vals) / len(vals)
             seed_std = round((sum((a - mean) ** 2 for a in vals) / len(vals)) ** 0.5, 2)
 
-        m = models.get(key, {})
+        def opt(d, k):
+            return d[k] if d else None
+
         entries.append({
             "model_key": key,
             "model_id": r["model_id"],
             "backend": r["backend"],
             "format": fmt,
-            "size_gb": m.get("size_gb"),
+            "size_gb": models.get(key, {}).get("size_gb"),
             "overall_acc": overall["acc"],
             "overall_ci": overall["ci"],
             "strict_acc": overall["strict_acc"],
             "strict_ci": overall["strict_ci"],
             "format_ok_rate": overall["format_ok_rate"],
-            "sentiment_acc": per_task["sentiment"]["acc"] if per_task["sentiment"] else None,
-            "topic_acc": per_task["topic"]["acc"] if per_task["topic"] else None,
-            "spam_acc": per_task["spam"]["acc"] if per_task["spam"] else None,
-            "easy_acc": easy_s["acc"] if easy_s else None,
-            "hard_acc": hard_s["acc"] if hard_s else None,
-            "hard_ci": hard_s["ci"] if hard_s else None,
+            "sentiment_acc": opt(per_task["sentiment"], "acc"),
+            "topic_acc": opt(per_task["topic"], "acc"),
+            "spam_acc": opt(per_task["spam"], "acc"),
+            "easy_acc": opt(easy_s, "acc"),
+            "hard_acc": opt(hard_s, "acc"),
+            "hard_ci": opt(hard_s, "ci"),
             "avg_inference_s": overall["avg_s"],
             "load_s": round(res["load_s"], 1),
             "seeds": r.get("seeds", [1]),
@@ -650,50 +623,6 @@ def cmd_export(args):
     print(f"results rows: {len(entries)}")
 
 
-def cmd_report(_args):
-    runs = _all_runs()
-    latest_by_model = {}
-    for r in runs:
-        if r.get("status") == "ok" and r.get("_has_results") and r.get("format", "json") == "json":
-            latest_by_model[r["model_key"]] = r
-    if not latest_by_model:
-        print("no completed runs yet")
-        return
-
-    easy_idx, hard_idx = difficulty_index_sets()
-    hw = detect_hardware()
-    lines = [
-        "# Classification benchmark — latest results",
-        "",
-        f"Hardware: {hw.get('model','?')} {hw.get('chip','?')} {hw.get('memory','?')} · temp=0 · format=json",
-        "",
-        "| Model | Overall (95% CI) | Easy | Hard | Sent | Topic | Spam | Run ID |",
-        "|---|---|---|---|---|---|---|---|",
-    ]
-    rows = []
-    for key, r in latest_by_model.items():
-        res = json.loads((r["_dir"] / "results.json").read_text())
-        s = stats(res["results"])
-        per = {t: stats(res["results"], task=t) for t in TASKS}
-        easy_s = stats(res["results"], difficulty="easy", easy_idx=easy_idx, hard_idx=hard_idx)
-        hard_s = stats(res["results"], difficulty="hard", easy_idx=easy_idx, hard_idx=hard_idx)
-        rows.append((key, s, per, easy_s, hard_s, r["run_id"]))
-    rows.sort(key=lambda x: -x[1]["acc"])
-    for key, s, per, easy_s, hard_s, rid in rows:
-        e = f"{easy_s['acc']:.0f}%" if easy_s else "-"
-        h = f"{hard_s['acc']:.0f}%" if hard_s else "-"
-        sent = f"{per['sentiment']['acc']:.0f}%" if per['sentiment'] else "-"
-        top = f"{per['topic']['acc']:.0f}%" if per['topic'] else "-"
-        spm = f"{per['spam']['acc']:.0f}%" if per['spam'] else "-"
-        lines.append(
-            f"| {key} | **{s['acc']:.1f}%** [{s['ci'][0]:.1f}–{s['ci'][1]:.1f}] | {e} | {h} | {sent} | {top} | {spm} | `{rid}` |"
-        )
-    out = ROOT / "RESULTS.md"
-    out.write_text("\n".join(lines))
-    print(out.read_text())
-    print(f"\nwrote {out}")
-
-
 # ---------- entry ----------
 
 def main():
@@ -735,8 +664,6 @@ def main():
     sp.add_argument("id1")
     sp.add_argument("id2")
     sp.set_defaults(fn=cmd_compare)
-
-    sub.add_parser("report", help="aggregate latest-per-model into RESULTS.md").set_defaults(fn=cmd_report)
 
     sp = sub.add_parser("export", help="export leaderboard.{json,csv} for committing")
     sp.add_argument("--allow-stale", action="store_true",

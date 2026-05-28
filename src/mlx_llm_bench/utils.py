@@ -60,10 +60,6 @@ def get_model(key):
 
 # ---------- HuggingFace cache ----------
 
-def hf_cache_dir(model_id):
-    return Path.home() / ".cache/huggingface/hub" / f"models--{model_id.replace('/', '--')}"
-
-
 _is_cached_memo = {}
 
 
@@ -105,21 +101,6 @@ def dataset_sha():
     data = load_dataset_with_validators(DATA_FILE)
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
-
-
-def difficulty_index_sets():
-    """Return (easy_set, hard_set) of dataset row indices from the explicit
-    `difficulty` field in data.json. Rows missing the field land in neither
-    set (treated as no-difficulty)."""
-    data = json.loads(DATA_FILE.read_text())
-    easy, hard = set(), set()
-    for i, ex in enumerate(data):
-        d = ex.get("difficulty")
-        if d == "easy":
-            easy.add(i)
-        elif d == "hard":
-            hard.add(i)
-    return easy, hard
 
 
 # ---------- hardware ----------
@@ -181,47 +162,49 @@ def mcnemar_p(b, c):
     return min(2 * one_side, 1.0)
 
 
-def stats(results, task=None, difficulty=None, easy_idx=None, hard_idx=None):
-    """Compute accuracy + 95% Wilson CI + format-compliance over a subset.
+def stats(results, task=None, difficulty=None):
+    """Accuracy + Wilson CI + format-compliance over an optionally filtered subset.
 
-    For multi-seed runs: aggregates per (task, i) first using majority vote
-    across seeds, then computes the CI on the per-example outcomes (n=examples,
-    not n=examples*seeds). Treating each (example, seed) as independent at
-    temp=0 is wrong — the seeds are highly correlated. So Wilson CI is on
-    n=examples to avoid artificial sqrt(seeds) tightening.
+    Filters: `task` matches `r["task"]`; `difficulty` matches `r.get("difficulty")`
+    directly from each result row (which already carries that field). Returns
+    None if subset is empty.
 
-    For single-seed runs the per-example list has length 1 and the result
-    is identical to the simple total-correct / total-n calculation.
+    Multi-seed aggregation: collapses per (task, i) via strict majority before
+    computing CI. n_examples is the example count; n_calls = examples × seeds.
+    Treating (example, seed) pairs as independent at temp=0 would shrink CIs by
+    sqrt(N_seeds) — the seeds are highly correlated so it's invalid.
+
+    Strict metric: correct AND format_ok. Reasoning-tuned/finetuned models
+    often "guess right" while ignoring the requested response shape; strict
+    accuracy makes the divergence visible (see Hermes-3 vs base Llama 3.2).
     """
     sub = results
     if task is not None:
         sub = [r for r in sub if r["task"] == task]
-    if difficulty == "easy":
-        sub = [r for r in sub if r["i"] in (easy_idx or set())]
-    elif difficulty == "hard":
-        sub = [r for r in sub if r["i"] in (hard_idx or set())]
+    if difficulty is not None:
+        sub = [r for r in sub if r.get("difficulty") == difficulty]
     if not sub:
         return None
 
-    # Aggregate per (task, i) across seeds — strict majority (>50%) is correct.
+    # Single pass: collect (correct, format_ok) per (task, i).
     by_ex = {}
-    strict_by_ex = {}
     for r in sub:
         key = (r["task"], r["i"])
-        by_ex.setdefault(key, []).append(r["correct"])
-        # strict pass = correct AND format_ok. Reasoning-tuned/finetune models
-        # often "guess right" while failing to follow the requested format.
-        strict_by_ex.setdefault(key, []).append(r["correct"] and r.get("format_ok", True))
+        by_ex.setdefault(key, []).append((bool(r["correct"]), r.get("format_ok", True)))
+
+    def majority(votes):
+        return sum(votes) > len(votes) / 2
+
     n_examples = len(by_ex)
-    correct_examples = sum(1 for v in by_ex.values() if sum(v) > len(v) / 2)
-    strict_correct = sum(1 for v in strict_by_ex.values() if sum(v) > len(v) / 2)
+    correct_examples = sum(1 for v in by_ex.values() if majority([c for c, _ in v]))
+    strict_correct = sum(1 for v in by_ex.values() if majority([c and f for c, f in v]))
+    n_seeds = max(len(v) for v in by_ex.values()) if by_ex else 1
 
     n_calls = len(sub)
     time_s = sum(r["time_s"] for r in sub)
     format_ok = sum(1 for r in sub if r.get("format_ok", True))
     lo, hi = wilson_ci(correct_examples, n_examples)
     s_lo, s_hi = wilson_ci(strict_correct, n_examples)
-    n_seeds = max(len(v) for v in by_ex.values()) if by_ex else 1
     return {
         "acc": round(100 * correct_examples / n_examples, 1),
         "ci": [lo, hi],
@@ -236,6 +219,25 @@ def stats(results, task=None, difficulty=None, easy_idx=None, hard_idx=None):
         "avg_s": round(time_s / n_calls, 3),
         "format_ok_rate": round(100 * format_ok / n_calls, 1),
     }
+
+
+def breakdown(results):
+    """Compute the canonical (overall, per_task_dict, easy, hard) quartet in one
+    call. Used by `_write_summary` and `cmd_export` — keeps the field names
+    consistent between markdown summaries and the leaderboard JSON schema.
+    """
+    return {
+        "overall": stats(results),
+        "per_task": {t: stats(results, task=t) for t in TASKS},
+        "easy": stats(results, difficulty="easy"),
+        "hard": stats(results, difficulty="hard"),
+    }
+
+
+def fmt_acc(s, decimals=1):
+    """Render 'acc% [lo-hi]' from a stats dict. One place to control floating-
+    point format so the leaderboard table doesn't drift between `:.0f` and `:.1f`."""
+    return f"{s['acc']:.{decimals}f}% [{s['ci'][0]:.{decimals}f}–{s['ci'][1]:.{decimals}f}]"
 
 
 def seed_stats(results):

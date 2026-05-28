@@ -85,22 +85,57 @@ def _v_regex_match(raw, v):
     return re.match(v["pattern"], raw.strip(), re.DOTALL) is not None
 def _v_starts_with(raw, v): return raw.strip().startswith(v["prefix"])
 def _v_ends_with(raw, v):   return raw.strip().endswith(v["suffix"])
+def _extract_json(raw, open_ch, close_ch):
+    """Pull the first balanced [..] or {..} substring out of `raw` and json-load it.
+    Handles nested brackets, ignores brackets inside strings. Returns the parsed
+    Python object or None. Avoids the greedy/non-greedy regex pitfalls that
+    misparse nested arrays and split across separate objects.
+    """
+    # Fast path: maybe the whole thing is valid JSON.
+    stripped = raw.strip()
+    try:
+        return json.loads(stripped)
+    except Exception:
+        pass
+    start = raw.find(open_ch)
+    while start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(raw)):
+            c = raw[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                continue
+            if c == '"':
+                in_str = True
+            elif c == open_ch:
+                depth += 1
+            elif c == close_ch:
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(raw[start:i + 1])
+                    except Exception:
+                        break
+        # didn't close cleanly — try next opener
+        start = raw.find(open_ch, start + 1)
+    return None
+
+
 def _v_json_array_length(raw, v):
-    try:
-        m = re.search(r'\[.*?\]', raw, re.DOTALL)
-        if not m: return False
-        arr = json.loads(m.group())
-        return isinstance(arr, list) and len(arr) == v["n"]
-    except Exception:
-        return False
+    arr = _extract_json(raw, "[", "]")
+    return isinstance(arr, list) and len(arr) == v["n"]
+
+
 def _v_json_has_keys(raw, v):
-    try:
-        m = re.search(r'\{.*\}', raw, re.DOTALL)
-        if not m: return False
-        obj = json.loads(m.group())
-        return isinstance(obj, dict) and all(k in obj for k in v["keys"])
-    except Exception:
-        return False
+    obj = _extract_json(raw, "{", "}")
+    return isinstance(obj, dict) and all(k in obj for k in v["keys"])
 def _v_exact_word_set(raw, v):
     cleaned = re.sub(r'[^A-Za-z]', '', raw).upper()
     return cleaned in [o.upper() for o in v["options"]]
@@ -153,7 +188,7 @@ def validate_ifeval(raw, validators):
     return all(r["pass"] for r in results), results
 
 
-def load_dataset_with_validators(data_path, validators_path=None):
+def load_dataset_with_validators(data_path, validators_path=None, strict=True):
     """Load data.json and merge ifeval_validators.json into each ifeval row.
 
     Keeps data.json clean of nested validator structures (so HuggingFace's
@@ -161,17 +196,46 @@ def load_dataset_with_validators(data_path, validators_path=None):
     the validators for IFEval items.
 
     `validators_path` defaults to `ifeval_validators.json` next to data.json.
+    `strict=True` (default) raises if:
+      - any ifeval row has no validators attached
+      - any validators key points to a non-ifeval row or out-of-range index
+    Without these checks, `all([])` would silently mark unvalidated IFEval rows
+    as passing.
     """
     data = json.loads(Path(data_path).read_text())
     if validators_path is None:
         validators_path = Path(data_path).parent / "ifeval_validators.json"
     p = Path(validators_path)
+    vmap = {}
     if p.exists():
         vmap = json.loads(p.read_text())
         for i, ex in enumerate(data):
             key = str(i)
             if key in vmap:
                 ex["validators"] = vmap[key]
+
+    if strict:
+        errors = []
+        for i, ex in enumerate(data):
+            if ex.get("task") == "ifeval":
+                vs = ex.get("validators") or []
+                if not vs:
+                    errors.append(f"  ifeval row i={i} has no validators ({ex.get('text','')[:60]!r})")
+        for key in vmap:
+            try:
+                i = int(key)
+            except ValueError:
+                errors.append(f"  validator key {key!r} is not a numeric index")
+                continue
+            if i < 0 or i >= len(data):
+                errors.append(f"  validator key {i} out of range (dataset has {len(data)} rows)")
+                continue
+            if data[i].get("task") != "ifeval":
+                errors.append(f"  validator key {i} points to a {data[i].get('task')!r} row, not ifeval")
+        if errors:
+            raise ValueError(
+                "ifeval_validators.json / data.json validation failed:\n" + "\n".join(errors)
+            )
     return data
 
 

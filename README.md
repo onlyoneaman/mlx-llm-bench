@@ -58,7 +58,7 @@ cd mlx-llm-bench
 
 ## Current leaderboard (Mac mini M4 16GB · n=125 · JSON format)
 
-Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 4546a1df566c`. **n=125 = 100 classification examples (sentiment + topic + spam) + 25 IFEval instruction-following examples.**
+Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 2c34076d55d3` (content-based — invariant to JSON formatting). **n=125 = 100 classification examples (sentiment + topic + spam) + 25 IFEval instruction-following examples.**
 
 | Rank | Model | Acc (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
 |---|---|---|---|---|---|---|---|
@@ -91,7 +91,7 @@ For a **16 GB Mac mini class** machine, picking from this bench's evidence:
   - `hermes-3-llama-3.2-3b` — finetune **broke** the base Llama 3.2 3B's structured-output ability. 100% → 28% fmt_ok after Hermes-3 RLHF. Cautionary tale about alignment finetunes for structured tasks
   - `mistral-nemo-minitron-8b`, `nemotron-nano-9b` — NVIDIA distillations are wildly slow (10–12s/ex) without an accuracy gain
 
-> Caveat on significance: at n=100, 95% Wilson CIs are ±8 pp around accuracies in the 85-95% range. Sub-3-point gaps are likely noise. Use `./bench compare <id1> <id2>` to get the paired McNemar p-value for a real significance test.
+> Caveat on significance: at n=125, 95% Wilson CIs are ±7 pp around accuracies in the 85-95% range. Sub-3-point gaps are likely noise. Use `./bench compare <id1> <id2>` to get the paired McNemar p-value for a real significance test. Headline `acc` is *lenient* — it counts free-form responses that recovered a valid label even when JSON format compliance failed. `fmt_ok` shows the fraction of responses that followed the requested format; Hermes-3 at 42% fmt_ok and 74% acc means a third of its credit comes from free-form fallback parsing.
 
 ## Annotation rubric
 

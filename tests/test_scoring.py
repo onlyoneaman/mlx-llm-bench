@@ -250,3 +250,158 @@ class TestUtilities:
     def test_word_count_handles_apostrophes_as_part_of_word(self):
         # "life's" should count as 1, not 2
         assert word_count("life's good") == 2
+
+
+# ---------- multi-seed aggregation ----------
+
+class TestStatsMultiSeed:
+    def _rows(self, results_per_ex):
+        """results_per_ex: dict {(task, i): [correct_bool, ...] (one per seed)}"""
+        rows = []
+        for (task, i), corrects in results_per_ex.items():
+            for seed_idx, c in enumerate(corrects, 1):
+                rows.append({
+                    "task": task, "i": i, "correct": c, "format_ok": True,
+                    "time_s": 0.1, "seed": seed_idx,
+                })
+        return rows
+
+    def test_single_seed_acc_unchanged(self):
+        from mlx_llm_bench.utils import stats
+        rows = self._rows({("sentiment", 0): [True], ("sentiment", 1): [False]})
+        s = stats(rows)
+        assert s["acc"] == 50.0
+        assert s["n"] == 2
+        assert s["n_calls"] == 2
+        assert s["n_seeds"] == 1
+
+    def test_majority_vote_three_seeds(self):
+        from mlx_llm_bench.utils import stats
+        # ex 0: 2/3 correct → pass
+        # ex 1: 1/3 correct → fail
+        # ex 2: 3/3 correct → pass
+        rows = self._rows({
+            ("sentiment", 0): [True, True, False],
+            ("sentiment", 1): [True, False, False],
+            ("sentiment", 2): [True, True, True],
+        })
+        s = stats(rows)
+        # 2 of 3 examples pass majority vote
+        assert s["acc"] == pytest.approx(66.7, abs=0.1)
+        assert s["n"] == 3  # examples
+        assert s["n_calls"] == 9  # 3 examples × 3 seeds
+        assert s["n_seeds"] == 3
+
+    def test_two_seed_tie_fails(self):
+        # With 2 seeds, sum > 1 means BOTH must be correct (1/2 doesn't pass).
+        from mlx_llm_bench.utils import stats
+        rows = self._rows({
+            ("sentiment", 0): [True, False],
+        })
+        s = stats(rows)
+        assert s["correct"] == 0
+
+    def test_strict_acc_diverges_when_format_fails(self):
+        from mlx_llm_bench.utils import stats
+        rows = [
+            # correct + format_ok → both pass
+            {"task": "sentiment", "i": 0, "correct": True, "format_ok": True, "time_s": 0.1, "seed": 1},
+            # correct via free-form fallback → acc passes, strict_acc fails
+            {"task": "sentiment", "i": 1, "correct": True, "format_ok": False, "time_s": 0.1, "seed": 1},
+            # wrong both ways
+            {"task": "sentiment", "i": 2, "correct": False, "format_ok": False, "time_s": 0.1, "seed": 1},
+        ]
+        s = stats(rows)
+        assert s["correct"] == 2
+        assert s["strict_correct"] == 1
+        assert s["acc"] > s["strict_acc"]
+
+
+# ---------- dataset SHA invariance ----------
+
+class TestDatasetShaInvariance:
+    def test_sha_invariant_to_validator_key_order(self, tmp_path):
+        from mlx_llm_bench.rescore import load_dataset_with_validators
+        import hashlib
+
+        data_path = tmp_path / "data.json"
+        v1 = tmp_path / "v_a.json"
+        v2 = tmp_path / "v_b.json"
+        data_path.write_text(json.dumps([
+            {"task": "ifeval", "text": "Say YES", "label": "ifeval", "difficulty": "easy"},
+            {"task": "ifeval", "text": "Count 3 words.", "label": "ifeval", "difficulty": "easy"},
+        ]))
+        # Same content, different key ordering
+        v1.write_text('{"0": [{"type":"contains_word","word":"YES"}], "1": [{"type":"word_count_exact","n":3}]}')
+        v2.write_text('{"1": [{"type":"word_count_exact","n":3}], "0": [{"type":"contains_word","word":"YES"}]}')
+
+        d1 = load_dataset_with_validators(data_path, v1)
+        d2 = load_dataset_with_validators(data_path, v2)
+        s1 = hashlib.sha256(json.dumps(d1, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        s2 = hashlib.sha256(json.dumps(d2, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        assert s1 == s2
+
+    def test_ifeval_with_no_validators_raises(self, tmp_path):
+        from mlx_llm_bench.rescore import load_dataset_with_validators
+        data_path = tmp_path / "data.json"
+        # IFEval row but no validators file
+        data_path.write_text(json.dumps([
+            {"task": "ifeval", "text": "Say YES", "label": "ifeval", "difficulty": "easy"},
+        ]))
+        with pytest.raises(ValueError, match="no validators"):
+            load_dataset_with_validators(data_path)
+
+    def test_validator_pointing_at_non_ifeval_raises(self, tmp_path):
+        from mlx_llm_bench.rescore import load_dataset_with_validators
+        data_path = tmp_path / "data.json"
+        v_path = tmp_path / "v.json"
+        data_path.write_text(json.dumps([
+            {"task": "sentiment", "text": "x", "label": "positive", "difficulty": "easy"},
+        ]))
+        v_path.write_text('{"0": [{"type":"contains_word","word":"x"}]}')
+        with pytest.raises(ValueError, match="not ifeval"):
+            load_dataset_with_validators(data_path, v_path)
+
+
+# ---------- JSON validator robustness ----------
+
+class TestJsonValidatorRobustness:
+    def test_nested_array_does_not_match_inner_brackets_only(self):
+        from mlx_llm_bench.rescore import _v_json_array_length
+        # Old non-greedy regex `\[.*?\]` would match `[[1,2]` and fail to parse.
+        assert _v_json_array_length("[[1,2],[3,4]]", {"n": 2}) is True
+
+    def test_multiple_json_objects_in_response(self):
+        from mlx_llm_bench.rescore import _v_json_has_keys
+        # Old greedy regex `\{.*\}` would span across both objects.
+        assert _v_json_has_keys('{"a":1} ignore {"b":2}', {"keys": ["a"]}) is True
+
+    def test_json_in_freeform_response(self):
+        from mlx_llm_bench.rescore import _v_json_has_keys
+        raw = 'Here is the result:\n{"name": "Ada", "age": 36}\nHope that helps!'
+        assert _v_json_has_keys(raw, {"keys": ["name", "age"]}) is True
+
+    def test_brackets_inside_strings_dont_confuse_extractor(self):
+        from mlx_llm_bench.rescore import _v_json_array_length
+        assert _v_json_array_length('["a", "[b]", "c"]', {"n": 3}) is True
+
+
+# ---------- HTTP error tagging ----------
+
+class TestHttpErrorTagging:
+    def test_http_error_is_scored_wrong_and_not_format_ok(self):
+        # Mirror the _score branch in runner.py
+        from mlx_llm_bench.runner import _score
+        ex = {"task": "sentiment", "label": "positive"}
+        pred, fmt_ok, correct, vres = _score(ex, "__HTTP_ERROR__: connection refused", fmt="json")
+        assert correct is False
+        assert fmt_ok is False
+        # Even if the error text happens to contain "positive" by accident,
+        # we don't want to count it as a correct answer.
+
+    def test_generic_error_tag_also_handled(self):
+        from mlx_llm_bench.runner import _score
+        ex = {"task": "sentiment", "label": "positive"}
+        pred, fmt_ok, correct, vres = _score(ex, "__ERROR__: timeout", fmt="json")
+        assert correct is False
+        assert fmt_ok is False

@@ -26,9 +26,13 @@ dependencies = [
     "huggingface_hub>=0.20",
 ]
 
+# MLX dep ranges are pinned to the bands the bench was validated against.
+# Notable: mlx-lm 0.31.3 has a Gemma 4 E4B loading regression (issue #1242);
+# we run via mlx-vlm for that model. Until the upstream fix lands, do not
+# upgrade past 0.32 without re-validating the Gemma 4 row.
 [project.optional-dependencies]
-mlx = ["mlx-lm>=0.31"]
-vlm = ["mlx-vlm>=0.5"]
+mlx = ["mlx-lm>=0.31,<0.33"]
+vlm = ["mlx-vlm>=0.5,<0.7"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]

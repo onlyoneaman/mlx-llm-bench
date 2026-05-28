@@ -11,7 +11,7 @@
     "cpu_cores": "10 (4 performance and 6 efficiency)",
     "memory": "16 GB"
   },
-  "exported_at": "2026-05-28T18:32:45",
+  "exported_at": "2026-05-28T18:44:23",
   "methodology": {
     "temperature": 0.0,
     "max_tokens": 250,
@@ -28,6 +28,11 @@
       "size_gb": 8.0,
       "overall_acc": 92.8,
       "overall_ci": [
+        86.9,
+        96.2
+      ],
+      "strict_acc": 92.8,
+      "strict_ci": [
         86.9,
         96.2
       ],
@@ -52,37 +57,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "gemma3-12b-qat",
-      "model_id": "mlx-community/gemma-3-12b-it-qat-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 8.0,
-      "overall_acc": 92.6,
-      "overall_ci": [
-        83.9,
-        96.8
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 95.7,
-      "topic_acc": 83.3,
-      "spam_acc": 100.0,
-      "easy_acc": 92.3,
-      "hard_acc": 100.0,
-      "hard_ci": [
-        43.8,
-        100.0
-      ],
-      "avg_inference_s": 0.836,
-      "load_s": 3.8,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122438_gemma3-12b-qat",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "llama-3.2-3b",
       "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
       "backend": "mlx-lm",
@@ -90,6 +64,11 @@
       "size_gb": 1.8,
       "overall_acc": 92.0,
       "overall_ci": [
+        85.9,
+        95.6
+      ],
+      "strict_acc": 92.0,
+      "strict_ci": [
         85.9,
         95.6
       ],
@@ -124,6 +103,11 @@
         84.0,
         94.4
       ],
+      "strict_acc": 90.4,
+      "strict_ci": [
+        84.0,
+        94.4
+      ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 90.9,
       "topic_acc": 91.7,
@@ -155,6 +139,11 @@
         84.0,
         94.4
       ],
+      "strict_acc": 90.4,
+      "strict_ci": [
+        84.0,
+        94.4
+      ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 97.0,
       "topic_acc": 86.1,
@@ -176,68 +165,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "gemma3-4b-qat",
-      "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 2.6,
-      "overall_acc": 89.7,
-      "overall_ci": [
-        80.2,
-        94.9
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 95.7,
-      "topic_acc": 75.0,
-      "spam_acc": 100.0,
-      "easy_acc": 89.2,
-      "hard_acc": 100.0,
-      "hard_ci": [
-        43.8,
-        100.0
-      ],
-      "avg_inference_s": 0.356,
-      "load_s": 2.1,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122540_gemma3-4b-qat",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "gemma4-e4b",
-      "model_id": "mlx-community/gemma-4-e4b-it-4bit",
-      "backend": "mlx-vlm",
-      "format": "text",
-      "size_gb": 5.2,
-      "overall_acc": 89.7,
-      "overall_ci": [
-        80.2,
-        94.9
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 87.0,
-      "topic_acc": 87.5,
-      "spam_acc": 95.2,
-      "easy_acc": 90.8,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 0.283,
-      "load_s": 3.6,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122412_gemma4-e4b",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "llama-3.1-8b",
       "model_id": "mlx-community/Llama-3.1-8B-Instruct-4bit",
       "backend": "mlx-lm",
@@ -245,6 +172,11 @@
       "size_gb": 4.2,
       "overall_acc": 89.6,
       "overall_ci": [
+        83.0,
+        93.8
+      ],
+      "strict_acc": 89.6,
+      "strict_ci": [
         83.0,
         93.8
       ],
@@ -279,6 +211,11 @@
         83.0,
         93.8
       ],
+      "strict_acc": 89.6,
+      "strict_ci": [
+        83.0,
+        93.8
+      ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 97.0,
       "topic_acc": 83.3,
@@ -300,37 +237,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "qwen3-8b",
-      "model_id": "mlx-community/Qwen3-8B-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 5.0,
-      "overall_acc": 86.8,
-      "overall_ci": [
-        76.7,
-        92.9
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 91.3,
-      "topic_acc": 75.0,
-      "spam_acc": 95.2,
-      "easy_acc": 87.7,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 0.479,
-      "load_s": 2.0,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122252_qwen3-8b",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "gemma3-4b-qat",
       "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
       "backend": "mlx-lm",
@@ -338,6 +244,11 @@
       "size_gb": 2.6,
       "overall_acc": 85.6,
       "overall_ci": [
+        78.4,
+        90.7
+      ],
+      "strict_acc": 85.6,
+      "strict_ci": [
         78.4,
         90.7
       ],
@@ -372,6 +283,11 @@
         77.5,
         90.0
       ],
+      "strict_acc": 84.8,
+      "strict_ci": [
+        77.5,
+        90.0
+      ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 90.9,
       "topic_acc": 80.6,
@@ -403,6 +319,11 @@
         77.5,
         90.0
       ],
+      "strict_acc": 84.8,
+      "strict_ci": [
+        77.5,
+        90.0
+      ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 87.9,
       "topic_acc": 80.6,
@@ -424,37 +345,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "qwen2.5-coder-7b",
-      "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 4.7,
-      "overall_acc": 82.4,
-      "overall_ci": [
-        71.6,
-        89.6
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 91.3,
-      "topic_acc": 70.8,
-      "spam_acc": 85.7,
-      "easy_acc": 83.1,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 0.622,
-      "load_s": 1.8,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122327_qwen2.5-coder-7b",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "mistral-nemo-minitron-8b",
       "model_id": "mlx-community/Mistral-NeMo-Minitron-8B-Instruct-4bit",
       "backend": "mlx-lm",
@@ -462,6 +352,11 @@
       "size_gb": 4.4,
       "overall_acc": 80.0,
       "overall_ci": [
+        72.1,
+        86.1
+      ],
+      "strict_acc": 80.0,
+      "strict_ci": [
         72.1,
         86.1
       ],
@@ -496,6 +391,11 @@
         71.3,
         85.4
       ],
+      "strict_acc": 79.2,
+      "strict_ci": [
+        71.3,
+        85.4
+      ],
       "format_ok_rate": 97.6,
       "sentiment_acc": 84.8,
       "topic_acc": 58.3,
@@ -527,6 +427,11 @@
         70.4,
         84.7
       ],
+      "strict_acc": 74.4,
+      "strict_ci": [
+        66.1,
+        81.2
+      ],
       "format_ok_rate": 96.0,
       "sentiment_acc": 87.9,
       "topic_acc": 83.3,
@@ -548,37 +453,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "llama-3.2-3b",
-      "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 1.8,
-      "overall_acc": 77.9,
-      "overall_ci": [
-        66.7,
-        86.2
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 95.7,
-      "topic_acc": 58.3,
-      "spam_acc": 81.0,
-      "easy_acc": 78.5,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 0.289,
-      "load_s": 1.5,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-124558_llama-3.2-3b",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "hermes-3-llama-3.2-3b",
       "model_id": "mlx-community/Hermes-3-Llama-3.2-3B-4bit",
       "backend": "mlx-lm",
@@ -588,6 +462,11 @@
       "overall_ci": [
         66.1,
         81.2
+      ],
+      "strict_acc": 27.2,
+      "strict_ci": [
+        20.2,
+        35.6
       ],
       "format_ok_rate": 42.4,
       "sentiment_acc": 84.8,
@@ -610,37 +489,6 @@
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "smollm3-3b",
-      "model_id": "mlx-community/SmolLM3-3B-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 1.8,
-      "overall_acc": 66.2,
-      "overall_ci": [
-        54.3,
-        76.3
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 95.7,
-      "topic_acc": 54.2,
-      "spam_acc": 47.6,
-      "easy_acc": 67.7,
-      "hard_acc": 33.3,
-      "hard_ci": [
-        6.1,
-        79.2
-      ],
-      "avg_inference_s": 1.455,
-      "load_s": 1.3,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-123256_smollm3-3b",
-      "run_date": "2026-05-28"
-    },
-    {
       "model_key": "deepseek-r1-distill-7b",
       "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
       "backend": "mlx-lm",
@@ -650,6 +498,11 @@
       "overall_ci": [
         50.4,
         67.4
+      ],
+      "strict_acc": 35.2,
+      "strict_ci": [
+        27.4,
+        43.9
       ],
       "format_ok_rate": 50.4,
       "sentiment_acc": 69.7,
@@ -675,43 +528,17 @@
       "model_key": "phi4-mini-reasoning",
       "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
       "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 2.2,
-      "overall_acc": 58.8,
-      "overall_ci": [
-        47.0,
-        69.7
-      ],
-      "format_ok_rate": 97.1,
-      "sentiment_acc": 73.9,
-      "topic_acc": 41.7,
-      "spam_acc": 61.9,
-      "easy_acc": 58.5,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 5.98,
-      "load_s": 1.5,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-122607_phi4-mini-reasoning",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "phi4-mini-reasoning",
-      "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
-      "backend": "mlx-lm",
       "format": "json",
       "size_gb": 2.2,
       "overall_acc": 48.0,
       "overall_ci": [
         39.4,
         56.7
+      ],
+      "strict_acc": 27.2,
+      "strict_ci": [
+        20.2,
+        35.6
       ],
       "format_ok_rate": 41.6,
       "sentiment_acc": 69.7,
@@ -731,37 +558,6 @@
       "seed_std_acc": null,
       "dataset_sha_at_run": "2c34076d55d3",
       "run_id": "20260528-162036_phi4-mini-reasoning",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "deepseek-r1-distill-7b",
-      "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
-      "backend": "mlx-lm",
-      "format": "text",
-      "size_gb": 4.5,
-      "overall_acc": 42.6,
-      "overall_ci": [
-        31.6,
-        54.5
-      ],
-      "format_ok_rate": 100.0,
-      "sentiment_acc": 52.2,
-      "topic_acc": 25.0,
-      "spam_acc": 52.4,
-      "easy_acc": 41.5,
-      "hard_acc": 66.7,
-      "hard_ci": [
-        20.8,
-        93.9
-      ],
-      "avg_inference_s": 9.969,
-      "load_s": 1.9,
-      "seeds": [
-        1
-      ],
-      "seed_std_acc": null,
-      "dataset_sha_at_run": "dd007748678f",
-      "run_id": "20260528-123437_deepseek-r1-distill-7b",
       "run_date": "2026-05-28"
     }
   ]

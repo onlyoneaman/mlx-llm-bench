@@ -366,9 +366,16 @@ def cmd_compare(args):
         print(f"\n⚠️  dataset_sha differs ({sha_a} vs {sha_b}) — McNemar invalid; skipping.")
         return
 
-    def key_correct(rs):
-        return {(r["task"], r["i"], r.get("seed", 0)): r["correct"] for r in rs}
-    ka, kb = key_correct(rs_a), key_correct(rs_b)
+    # Aggregate per (task, i) — majority-correct across seeds — before pairing.
+    # Pairing on (task, i, seed) would treat highly-correlated seed replicates as
+    # independent and inflate n_discordant by N_seeds, artificially shrinking p.
+    def per_example_correct(rs):
+        by_ex = {}
+        for r in rs:
+            by_ex.setdefault((r["task"], r["i"]), []).append(bool(r["correct"]))
+        return {k: (sum(v) > len(v) / 2) for k, v in by_ex.items()}
+
+    ka, kb = per_example_correct(rs_a), per_example_correct(rs_b)
     shared = sorted(set(ka) & set(kb))
     if not shared:
         print("\nNo overlapping examples for paired test.")
@@ -461,6 +468,12 @@ def cmd_serve(args):
         m = get_model(args.model)
     except KeyError as e:
         sys.exit(str(e))
+    if m["backend"] == "openai":
+        sys.exit(
+            f"'{args.model}' uses backend=openai (endpoint={m.get('endpoint','?')}); "
+            "the server is external and `bench serve` doesn't manage it. "
+            "Start it yourself (e.g. `afm` for Apple FM, `ollama serve`, `mlx_lm.server`)."
+        )
     py = VENVS[m["backend"]]
     server_mod = "mlx_lm.server" if m["backend"] == "mlx-lm" else "mlx_vlm.server"
     cmd = [str(py), "-m", server_mod, "--model", m["model_id"],
@@ -502,22 +515,34 @@ def cmd_rescore(args):
     print(f"\nRescored {total_runs} run(s), {total_changed} total cell changes.")
 
 
-def cmd_export(_args):
+def cmd_export(args):
     runs = _all_runs()
-    latest = {}
+    ds_sha = dataset_sha()
+    allow_stale = getattr(args, "allow_stale", False)
+
+    fresh = {}
+    stale_skipped = []
     for r in runs:
         if r.get("status") != "ok" or not r.get("_has_results"):
             continue
-        key = (r["model_key"], r.get("format", "text"))
-        latest[key] = r
+        run_sha = r.get("dataset_sha")
+        if run_sha and run_sha != ds_sha and not allow_stale:
+            stale_skipped.append(r)
+            continue
+        key = (r["model_key"], r.get("format", "json"))
+        fresh[key] = r
+    latest = fresh
 
+    if stale_skipped:
+        print(f"skipped {len(stale_skipped)} stale run(s) (dataset_sha != current {ds_sha}). Pass --allow-stale to include them:")
+        for r in stale_skipped:
+            print(f"    {r.get('model_key','?')} (fmt={r.get('format','?')}) → ran on {r.get('dataset_sha','?')}")
     if not latest:
-        print("no completed runs yet")
+        print("no fresh completed runs to export. Rerun `bench run all --cached` against the current dataset, or pass --allow-stale.")
         return
 
     models = load_models()
     hw = detect_hardware()
-    ds_sha = dataset_sha()
     easy_idx, hard_idx = difficulty_index_sets()
 
     entries = []
@@ -544,6 +569,8 @@ def cmd_export(_args):
             "size_gb": m.get("size_gb"),
             "overall_acc": overall["acc"],
             "overall_ci": overall["ci"],
+            "strict_acc": overall["strict_acc"],
+            "strict_ci": overall["strict_ci"],
             "format_ok_rate": overall["format_ok_rate"],
             "sentiment_acc": per_task["sentiment"]["acc"] if per_task["sentiment"] else None,
             "topic_acc": per_task["topic"]["acc"] if per_task["topic"] else None,
@@ -579,11 +606,12 @@ def cmd_export(_args):
         "results": entries,
     }
 
-    stale = [e for e in entries if e["dataset_sha_at_run"] and e["dataset_sha_at_run"] != ds_sha]
-    if stale:
-        print(f"⚠️  {len(stale)} model run(s) used a different dataset_sha than current ({ds_sha}). Rerun for fresh numbers:")
-        for e in stale:
-            print(f"    {e['model_key']} (fmt={e['format']}) → ran on {e['dataset_sha_at_run']}")
+    if allow_stale:
+        stale = [e for e in entries if e["dataset_sha_at_run"] and e["dataset_sha_at_run"] != ds_sha]
+        if stale:
+            print(f"⚠️  including {len(stale)} stale row(s) (--allow-stale was set):")
+            for e in stale:
+                print(f"    {e['model_key']} (fmt={e['format']}) → ran on {e['dataset_sha_at_run']}")
 
     json_path = ROOT / "leaderboard.json"
     json_path.write_text(json.dumps(payload, indent=2))
@@ -710,7 +738,10 @@ def main():
 
     sub.add_parser("report", help="aggregate latest-per-model into RESULTS.md").set_defaults(fn=cmd_report)
 
-    sub.add_parser("export", help="export leaderboard.{json,csv} for committing").set_defaults(fn=cmd_export)
+    sp = sub.add_parser("export", help="export leaderboard.{json,csv} for committing")
+    sp.add_argument("--allow-stale", action="store_true",
+                    help="include runs whose dataset_sha doesn't match the current dataset (skipped by default)")
+    sp.set_defaults(fn=cmd_export)
 
     sp = sub.add_parser("rescore", help="re-apply scoring to historical results.json files in place")
     sp.add_argument("--sha", default=None, help="restrict to one dataset_sha")

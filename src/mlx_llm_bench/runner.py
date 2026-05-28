@@ -9,6 +9,7 @@ Supports:
 """
 import argparse
 import json
+import os
 import re
 import time
 from pathlib import Path
@@ -112,7 +113,14 @@ def _build_prompt(ex, fmt):
 
 
 def _score(ex, raw, fmt):
-    """Return (pred_string, format_ok, correct, validator_results_or_none)."""
+    """Return (pred_string, format_ok, correct, validator_results_or_none).
+
+    Transport-layer failures (HTTP errors, network drops) from the openai
+    backend are tagged with __HTTP_ERROR__ / __ERROR__ prefixes. Treat those
+    as wrong + not-format-ok so they can't accidentally be scored correct.
+    """
+    if isinstance(raw, str) and raw.startswith(("__HTTP_ERROR__", "__ERROR__")):
+        return raw[:80], False, False, None
     if ex["task"] == "ifeval":
         all_pass, vres = validate_ifeval(raw, ex.get("validators", []))
         passed = sum(1 for r in vres if r["pass"])
@@ -211,6 +219,8 @@ def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
     def wrap(prompt):
         return prompt  # server applies its own chat template
 
+    http_timeout = float(os.environ.get("BENCH_OPENAI_TIMEOUT_S", "60"))
+
     def gen(formatted, seed):
         payload = {
             "model": model_name,
@@ -225,10 +235,12 @@ def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
             headers={"Content-Type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=http_timeout) as resp:
                 body = _json.loads(resp.read())
             return body["choices"][0]["message"]["content"]
         except urllib.error.URLError as e:
+            # Tag the response so _score/_record can mark it as a transport
+            # failure rather than scoring it as a wrong-but-valid answer.
             return f"__HTTP_ERROR__: {e}"
         except Exception as e:
             return f"__ERROR__: {e}"

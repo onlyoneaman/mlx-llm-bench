@@ -203,25 +203,35 @@ def stats(results, task=None, difficulty=None, easy_idx=None, hard_idx=None):
     if not sub:
         return None
 
-    # Aggregate per (task, i) across seeds — majority-correct wins ties → pass.
+    # Aggregate per (task, i) across seeds — strict majority (>50%) is correct.
     by_ex = {}
+    strict_by_ex = {}
     for r in sub:
-        by_ex.setdefault((r["task"], r["i"]), []).append(r["correct"])
+        key = (r["task"], r["i"])
+        by_ex.setdefault(key, []).append(r["correct"])
+        # strict pass = correct AND format_ok. Reasoning-tuned/finetune models
+        # often "guess right" while failing to follow the requested format.
+        strict_by_ex.setdefault(key, []).append(r["correct"] and r.get("format_ok", True))
     n_examples = len(by_ex)
     correct_examples = sum(1 for v in by_ex.values() if sum(v) > len(v) / 2)
+    strict_correct = sum(1 for v in strict_by_ex.values() if sum(v) > len(v) / 2)
 
     n_calls = len(sub)
     time_s = sum(r["time_s"] for r in sub)
     format_ok = sum(1 for r in sub if r.get("format_ok", True))
     lo, hi = wilson_ci(correct_examples, n_examples)
+    s_lo, s_hi = wilson_ci(strict_correct, n_examples)
     n_seeds = max(len(v) for v in by_ex.values()) if by_ex else 1
     return {
         "acc": round(100 * correct_examples / n_examples, 1),
         "ci": [lo, hi],
+        "strict_acc": round(100 * strict_correct / n_examples, 1),
+        "strict_ci": [s_lo, s_hi],
         "n": n_examples,
         "n_calls": n_calls,
         "n_seeds": n_seeds,
         "correct": correct_examples,
+        "strict_correct": strict_correct,
         "time_s": round(time_s, 2),
         "avg_s": round(time_s / n_calls, 3),
         "format_ok_rate": round(100 * format_ok / n_calls, 1),

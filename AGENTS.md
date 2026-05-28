@@ -8,7 +8,7 @@ This is a **public repository** (github.com/onlyoneaman/mlx-llm-bench + huggingf
 
 ## Project in one paragraph
 
-A local LLM classification benchmark for Apple Silicon Macs with limited unified memory (≈16 GB). Three classification tasks (sentiment, topic, spam) with a deliberate easy/hard split that separates models. Runs locally via the MLX framework (mlx-lm for text-only, mlx-vlm for multimodal). Results are stored per-run in `runs/` (gitignored audit trail), aggregated into a canonical `leaderboard.json` + `leaderboard.csv` that are committed.
+A local LLM classification + instruction-following benchmark for Apple Silicon Macs with limited unified memory (≈16 GB). Four tasks (sentiment, topic, spam — classification; ifeval — instruction following with regex validators) with a deliberate easy/hard split. Runs locally via the MLX framework (mlx-lm for text-only, mlx-vlm for multimodal) or any OpenAI-compatible HTTP endpoint. Results are stored per-run in `runs/` (gitignored audit trail), aggregated into canonical `leaderboard.json` + `leaderboard.csv` that are committed.
 
 ## Quick orientation (read these first)
 
@@ -145,7 +145,7 @@ Past audits caught these inconsistencies: lines 33/59 had identical-structure ac
 | `not_contains_word` | `word` | response does not contain word |
 | `not_contains_letter` | `letter` | letter not present anywhere |
 | `not_contains_chars` | `chars` | none of the characters present |
-| `regex_match` | `pattern` | `re.match(pattern, raw.strip())` succeeds |
+| `regex_match` | `pattern` | `re.match(pattern, raw.strip(), re.DOTALL)` succeeds — `re.DOTALL` is set so `.` matches newlines; write `^...$` with care |
 | `starts_with` | `prefix` | stripped response begins with prefix |
 | `ends_with` | `suffix` | stripped response ends with suffix |
 | `json_array_length` | `n` | response contains a JSON array of length `n` |
@@ -193,18 +193,19 @@ Never `git add -A` blindly — it would catch `runs/` and `archive/` if .gitigno
 `YYYYMMDD-HHMMSS_<model-key>` — sortable, parseable. Stored as `runs/<run_id>/{meta.json,results.json,summary.md}`.
 
 ### Dataset SHA
-Content-based hash: `sha256(json.dumps(load_dataset_with_validators(data), sort_keys=True, separators=(",",":")))`, first 12 hex chars. Invariant to JSON formatting and the data.json / ifeval_validators.json split — only actual content changes (task/text/label/difficulty/validators) move the SHA.
-First 12 hex chars of `sha256(data.json)`. Embedded in `leaderboard.json` and in `archive/leaderboard-<ts>-<sha>.json` filenames. If two snapshots have different SHAs, do not compare their numbers — the dataset diverged.
+Content-based hash: `sha256(json.dumps(load_dataset_with_validators(data), sort_keys=True, separators=(",",":")))`, first 12 hex chars. Invariant to JSON formatting and the data.json / ifeval_validators.json split — only actual content changes (task/text/label/difficulty/validators) move the SHA. Embedded in `leaderboard.json` and in `archive/leaderboard-<ts>-<sha>.json` filenames. If two snapshots have different SHAs, do not compare their numbers — the dataset diverged.
 
 ### Hardware fingerprint
 Auto-detected from `system_profiler SPHardwareDataType` on macOS. Lives at `hardware:` in `leaderboard.json`. Future cross-platform results should keep this schema even if the values look different.
 
 ### Prompts
-Defined in `runner.py` (`PROMPT_TEMPLATES`) per format. All three tasks share the same shape: instruction + format directive + input + `Answer:`. `temp=0`, `max_tokens=250` (safety upper bound — non-thinking models EOS at 1–3 tokens so no slowdown; reasoning-trained models need room to finish their `<think>` block before emitting the answer).
+Defined in `runner.py` (`PROMPT_TEMPLATES`) per format. Classification tasks share the same shape: instruction + format directive + input + `Answer:`. IFEval rows use the example's `text` as the raw prompt (no template wrapping). `temp=0`, `max_tokens=250` (safety upper bound — non-thinking models EOS at 1–3 tokens so no slowdown; reasoning-trained models need room to finish their `<think>` block before emitting the answer).
 
 Two formats:
-- `text` (default): "Reply with exactly one word." Parser scans for first valid label.
-- `json`: "Respond with `{\"label\": \"...\"}`." Parser regexes the JSON object first; if it can extract a valid label from a `{"label": "x"}` block, `format_ok=True`. Otherwise falls back to text-parse with `format_ok=False`.
+- `json` (default since 2026-05-28): "Respond with `{\"label\": \"...\"}`." Parser regexes the JSON object first; if it can extract a valid label from a `{"label": "x"}` block, `format_ok=True`. Otherwise falls back to text-parse with `format_ok=False`.
+- `text`: "Reply with exactly one word." Parser scans for first valid label.
+
+Accuracy notes the difference between `acc` (lenient — counts free-form fallback as correct if the label appears anywhere) and `format_ok` (strict — model emitted the requested shape). Hermes-3-Llama-3.2-3B is the canonical example where these diverge sharply.
 
 ### Scoring
 1. Strip any `<think>...</think>` or `<thought>...</thought>` blocks from the raw output (reasoning-model CoT).
@@ -249,7 +250,8 @@ Documentation drift is the most common bug in this repo's history. Before any co
 1. **README leaderboard table matches `leaderboard.json`.** If you re-ran benchmarks or edited `data.json`, the table in README is almost certainly stale. Regenerate by hand or skip the table and link to `leaderboard.csv`.
 2. **AGENTS.md describes the actual code.** If you changed defaults (e.g. `max_tokens` in `runner.py`), update the matching reference in the Conventions section here. The published methodology must match what `./bench run` actually does.
 3. **HuggingFace README is in sync** with the GitHub README. After `git push`, run `hf upload onlyoneaman/mlx-llm-bench README.md leaderboard.json leaderboard.csv data.json models.json --repo-type dataset`.
-4. **`dataset_sha` in `leaderboard.json` matches `sha256(data.json)`.** If `bench export` didn't run after a data edit, the snapshot is for an older dataset.
+4. **`dataset_sha` in `leaderboard.json` matches `dataset_sha()` from `utils.py`** (content-based hash including the validators sidecar). `bench export` will refuse stale entries unless `--allow-stale` is passed.
+5. **`pytest tests/`** is green — see `tests/test_scoring.py`.
 5. **No stale `notes` in `models.json`** referencing benchmarks the model no longer leads or behaviors that have been disproven on this dataset.
 
 If any check fails, fix the docs before pushing. Stale docs erode trust faster than incomplete features.

@@ -55,26 +55,36 @@ cd mlx-llm-bench
 
 Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 2f0dc8844537`.
 
-| Model | Overall (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
-|---|---|---|---|---|---|---|
-| **gemma3-12b-qat** | **93.0%** [86–97] | 98% | 83% | 100% | 1.38s | 8.0GB |
-| **llama-3.2-3b** | **91.0%** [84–95] | 97% | 80% | 100% | **0.42s** | **1.8GB** |
-| gemma4-e4b | 89.0% [81–94] | 98% | 71% | 100% | 0.58s | 5.2GB |
-| qwen3-8b | 88.0% [80–93] | 97% | 71% | 100% | 0.83s | 5.0GB |
-| qwen2.5-coder-7b | 86.0% [78–92] | 97% | 66% | 100% | 0.89s | 4.7GB |
-| gemma3-4b-qat | 85.0% [77–91] | 94% | 69% | 99% | 0.54s | 2.6GB |
-| smollm3-3b | 77.0% [68–84] | 88% | 57% | 97% | 0.58s | 1.8GB |
-| deepseek-r1-distill-7b | 64.0% [54–73] | 69% | 54% | **38%** | 10.11s | 4.5GB |
-| phi4-mini-reasoning | 52.0% [42–62] | 54% | 49% | **27%** | 6.08s | 2.2GB |
+| Rank | Model | Acc (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
+|---|---|---|---|---|---|---|---|
+| 1 | **gemma3-12b-qat** | **93.0%** [86–97] | 98% | 83% | 100% | 1.38s | 8.0GB |
+| 2 | **llama-3.2-3b** | **91.0%** [84–95] | 97% | 80% | 100% | **0.42s** | **1.8GB** |
+| 3 | ministral-3-8b | 90.0% [83–94] | 98% | 74% | 100% | 3.55s | 5.6GB |
+| 4 | gemma4-e4b | 89.0% [81–94] | 98% | 71% | 100% | 0.58s | 5.2GB |
+| 4 | llama-3.1-8b | 89.0% [81–94] | 97% | 74% | 100% | 0.93s | 4.2GB |
+| 4 | mistral-nemo-minitron-8b | 89.0% [81–94] | 97% | 74% | 100% | 12.18s | 4.4GB |
+| 7 | nemotron-nano-9b | 88.0% [80–93] | 94% | 77% | 95% | 9.82s | 5.0GB |
+| 7 | qwen3-8b | 88.0% [80–93] | 97% | 71% | 100% | 0.83s | 5.0GB |
+| 9 | phi4-mini-instruct | 87.0% [79–92] | 95% | 71% | 100% | 0.53s | 2.2GB |
+| 10 | qwen2.5-coder-7b | 86.0% [78–92] | 97% | 66% | 100% | 0.89s | 4.7GB |
+| 11 | gemma3-4b-qat | 85.0% [77–91] | 94% | 69% | 99% | 0.54s | 2.6GB |
+| 12 | hermes-3-llama-3.2-3b | 80.0% [71–87] | 92% | 57% | **28%** ⚠️ | 0.39s | 1.7GB |
+| 13 | smollm3-3b | 77.0% [68–84] | 88% | 57% | 97% | 0.58s | 1.8GB |
+| 14 | deepseek-r1-distill-7b | 64.0% [54–73] | 69% | 54% | **38%** | 10.11s | 4.5GB |
+| 15 | phi4-mini-reasoning | 52.0% [42–62] | 54% | 49% | **27%** | 6.08s | 2.2GB |
 
 ## Which model should I run?
 
 For a **16 GB Mac mini class** machine, picking from this bench's evidence:
 
-- 🎯 **Default daily driver: `llama-3.2-3b`.** 91% accuracy at 0.42 s/example in a 1.8 GB footprint. Pareto-dominates every model except gemma3-12b — and the 2-point CI overlap with 12B means the difference may not even be real on this dataset.
-- 🧠 **Maximum accuracy: `gemma3-12b-qat`.** 93% but 1.4 s/example and 8 GB. Use when accuracy matters more than speed, and close other apps first to avoid swap pressure.
-- 👁️ **Multimodal: `gemma4-e4b`.** Vision + native audio. 89% on text classification. The only fully-multimodal model in the registry; pick it when the task touches images or speech.
-- ❌ **Don't use for classification**: `phi4-mini-reasoning`, `deepseek-r1-distill-7b`. Reasoning-tuned models emit `<think>` blocks instead of labels — format compliance drops to 27–38% and they run 10–24× slower than alternatives. Use them for math/CoT tasks where they shine, not here.
+- 🎯 **Default daily driver: `llama-3.2-3b`.** 91% accuracy at 0.42 s/example in 1.8 GB. Pareto-dominates everything except gemma3-12b. Validated against Llama 3.1 8B (89%, 0.93s) — newer & smaller wins on both axes.
+- 🧠 **Maximum accuracy: `gemma3-12b-qat`.** 93% but 1.4 s/example and 8 GB. Use when accuracy matters more than speed, and close other apps first.
+- 👁️ **Multimodal: `gemma4-e4b`.** Vision + native audio. 89% on text classification. Only fully-multimodal model in the registry.
+- 🔁 **Strict instruction-following needed (clean JSON output): `llama-3.2-3b` or `phi4-mini-instruct`.** Both hit 100% format compliance. Avoid finetunes for this — see hermes-3 finding below.
+- ❌ **Don't use for classification**:
+  - `phi4-mini-reasoning`, `deepseek-r1-distill-7b` — reasoning-tuned, emit `<think>` blocks, 27–38% fmt_ok, 10–24× slower
+  - `hermes-3-llama-3.2-3b` — finetune **broke** the base Llama 3.2 3B's structured-output ability. 100% → 28% fmt_ok after Hermes-3 RLHF. Cautionary tale about alignment finetunes for structured tasks
+  - `mistral-nemo-minitron-8b`, `nemotron-nano-9b` — NVIDIA distillations are wildly slow (10–12s/ex) without an accuracy gain
 
 > Caveat on significance: at n=100, 95% Wilson CIs are ±8 pp around accuracies in the 85-95% range. Sub-3-point gaps are likely noise. Use `./bench compare <id1> <id2>` to get the paired McNemar p-value for a real significance test.
 

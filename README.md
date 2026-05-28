@@ -81,14 +81,16 @@ Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](
 
 For a **16 GB Mac mini class** machine, picking from this bench's evidence:
 
-- 🎯 **Default daily driver: `llama-3.2-3b`.** 91% accuracy at 0.42 s/example in 1.8 GB. Pareto-dominates everything except gemma3-12b. Validated against Llama 3.1 8B (89%, 0.93s) — newer & smaller wins on both axes.
-- 🧠 **Maximum accuracy: `gemma3-12b-qat`.** 93% but 1.4 s/example and 8 GB. Use when accuracy matters more than speed, and close other apps first.
-- 👁️ **Multimodal: `gemma4-e4b`.** Vision + native audio. 89% on text classification. Only fully-multimodal model in the registry.
-- 🔁 **Strict instruction-following needed (clean JSON output): `llama-3.2-3b` or `phi4-mini-instruct`.** Both hit 100% format compliance. Avoid finetunes for this — see hermes-3 finding below.
+All exact numbers are in `leaderboard.csv`; this section is qualitative so it doesn't drift every time the bench reruns.
+
+- 🎯 **Default daily driver: `llama-3.2-3b`.** Smallest model that lands near the top tier on both lenient and strict accuracy, at the fastest per-example time in the top tier. Validated against Llama 3.1 8B — newer & smaller wins on both axes.
+- 🧠 **Maximum accuracy: `gemma3-12b-qat`.** Top of the leaderboard but slowest non-reasoning model and tight on 16 GB. Close other apps before running.
+- 👁️ **Multimodal: `gemma4-e4b`.** Vision + native audio. Only fully-multimodal model in the registry.
+- 🔁 **Strict instruction-following: `llama-3.2-3b` or `phi4-mini-instruct`.** Both hit ~100% format compliance — `strict_acc ≈ acc` on the leaderboard. Avoid alignment finetunes for this; see Hermes-3 finding below.
 - ❌ **Don't use for classification**:
-  - `phi4-mini-reasoning`, `deepseek-r1-distill-7b` — reasoning-tuned, emit `<think>` blocks, 27–38% fmt_ok, 10–24× slower
-  - `hermes-3-llama-3.2-3b` — finetune **broke** the base Llama 3.2 3B's structured-output ability. 100% → 28% fmt_ok after Hermes-3 RLHF. Cautionary tale about alignment finetunes for structured tasks
-  - `mistral-nemo-minitron-8b`, `nemotron-nano-9b` — NVIDIA distillations are wildly slow (10–12s/ex) without an accuracy gain
+  - `phi4-mini-reasoning`, `deepseek-r1-distill-7b` — reasoning-tuned models emit `<think>` blocks instead of answers. Look for the gap between `acc` and `strict_acc` in `leaderboard.csv`.
+  - `hermes-3-llama-3.2-3b` — Hermes-3 RLHF broke the base Llama 3.2 3B's structured-output ability. Compare `strict_acc` vs `acc` to see how much credit is from free-form fallback parsing.
+  - `mistral-nemo-minitron-8b`, `nemotron-nano-9b` — NVIDIA distillations are 10–20× slower than Llama 3.2 3B with no accuracy gain.
 
 > Caveat on significance: at n=125, 95% Wilson CIs are ±7 pp around accuracies in the 85-95% range. Sub-3-point gaps are likely noise. Use `./bench compare <id1> <id2>` to get the paired McNemar p-value for a real significance test. Headline `acc` is *lenient* — it counts free-form responses that recovered a valid label even when JSON format compliance failed. `fmt_ok` shows the fraction of responses that followed the requested format; Hermes-3 at 42% fmt_ok and 74% acc means a third of its credit comes from free-form fallback parsing.
 
@@ -102,7 +104,7 @@ For ambiguous "hard" examples, these tiebreakers were applied — published so a
 
 ## How comparability works
 
-- `leaderboard.json` carries `dataset_sha` — a hash of `data.json`. Different SHAs are not comparable.
+- `leaderboard.json` carries `dataset_sha` — a content-based hash of `data.json` plus the IFEval validators sidecar (`ifeval_validators.json`). Invariant to JSON formatting; only label/text/validator changes shift it. Different SHAs are not comparable.
 - `hardware` (chip, memory) is auto-detected and embedded. Cross-hardware comparisons should consider memory bandwidth.
 - `runs/` keeps full per-prediction audit trail locally; `archive/` keeps timestamped leaderboard snapshots. Both are gitignored.
 

@@ -246,12 +246,19 @@ def _write_summary(rdir):
         s = stats(rs, difficulty=label)
         if s:
             lines.append(f"| {label} | {s['correct']}/{s['n']} = {fmt_acc(s)} |")
+    # Misses: aggregate per (task, i) via majority-vote so multi-seed runs don't
+    # list examples that majority-passed but failed on one seed.
     lines += ["", "## Misses", ""]
+    by_ex = {}
     for r in rs:
-        if not r["correct"]:
-            txt = r["text"][:80] + ("..." if len(r["text"]) > 80 else "")
-            fmt_flag = "" if r.get("format_ok", True) else " [format_error]"
-            lines.append(f"- [{r['task']}/{r.get('difficulty','?')}] **{r['label']} → {r['pred']}**{fmt_flag}: {txt}")
+        by_ex.setdefault((r["task"], r["i"]), []).append(r)
+    for (task, i), reps in by_ex.items():
+        if sum(r["correct"] for r in reps) > len(reps) / 2:
+            continue
+        r = reps[0]  # representative for text + pred
+        txt = r["text"][:80] + ("..." if len(r["text"]) > 80 else "")
+        fmt_flag = "" if r.get("format_ok", True) else " [format_error]"
+        lines.append(f"- [{r['task']}/{r.get('difficulty','?')}] **{r['label']} → {r['pred']}**{fmt_flag}: {txt}")
     (rdir / "summary.md").write_text("\n".join(lines))
 
 
@@ -370,8 +377,9 @@ def cmd_compare(args):
     else:
         print("→ NOT significant at α=0.05 — gap may be noise")
     print()
-    miss_a = {(r["task"], r["i"]) for r in rs_a if not r["correct"]}
-    miss_b = {(r["task"], r["i"]) for r in rs_b if not r["correct"]}
+    # Miss sets use the same per-example majority as McNemar above.
+    miss_a = {k for k in shared if not ka[k]}
+    miss_b = {k for k in shared if not kb[k]}
     print(f"misses unique to {args.id1}: {len(miss_a - miss_b)}")
     print(f"misses unique to {args.id2}: {len(miss_b - miss_a)}")
     print(f"misses shared:            {len(miss_a & miss_b)}")
@@ -483,6 +491,10 @@ def cmd_rescore(args):
             continue
         n, ch = rescore_run(rdir, data_by_i)
         if n > 0:
+            # Even when no `correct` flipped, `pred` / `format_ok` / validators
+            # may have changed (e.g. cleanup of special tokens). Regenerate the
+            # markdown summary so `bench show` doesn't display stale text.
+            _write_summary(rdir)
             print(f"  {meta.get('model_key','?'):28s} fmt={meta.get('format','?'):4s} sha={meta.get('dataset_sha','?')}  changed: {ch}/{n}")
             total_runs += 1
             total_changed += ch

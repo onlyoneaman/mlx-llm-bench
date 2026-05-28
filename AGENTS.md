@@ -205,7 +205,12 @@ Two formats:
 - `json` (default since 2026-05-28): "Respond with `{\"label\": \"...\"}`." Parser regexes the JSON object first; if it can extract a valid label from a `{"label": "x"}` block, `format_ok=True`. Otherwise falls back to text-parse with `format_ok=False`.
 - `text`: "Reply with exactly one word." Parser scans for first valid label.
 
-Accuracy notes the difference between `acc` (lenient — counts free-form fallback as correct if the label appears anywhere) and `format_ok` (strict — model emitted the requested shape). Hermes-3-Llama-3.2-3B is the canonical example where these diverge sharply.
+Three accuracy concepts are tracked, all aggregated per (task, i) by strict-majority across seeds:
+- `acc` — lenient. Correct if the parsed label matches, even when the model ignored the requested format (the parser fell back to first-valid-label-anywhere).
+- `strict_acc` — `correct AND format_ok` per example. The honest headline when models like Hermes-3 or reasoning-tuned distills "guess right" while breaking the response shape.
+- `format_ok_rate` — fraction of model calls (not examples) that followed the requested format. Computed at call level so multi-seed runs surface within-seed variance.
+
+`leaderboard.json` exports `overall_acc`/`overall_ci`/`strict_acc`/`strict_ci`/`format_ok_rate` per model. Treat `acc` and `strict_acc` as a pair; when the gap is large the model is succeeding via parser-recovery, not instruction-following.
 
 ### Scoring
 1. Strip any `<think>...</think>` or `<thought>...</thought>` blocks from the raw output (reasoning-model CoT).
@@ -250,9 +255,9 @@ Documentation drift is the most common bug in this repo's history. Before any co
 1. **README leaderboard table matches `leaderboard.json`.** If you re-ran benchmarks or edited `data.json`, the table in README is almost certainly stale. Regenerate by hand or skip the table and link to `leaderboard.csv`.
 2. **AGENTS.md describes the actual code.** If you changed defaults (e.g. `max_tokens` in `runner.py`), update the matching reference in the Conventions section here. The published methodology must match what `./bench run` actually does.
 3. **HuggingFace README is in sync** with the GitHub README. After `git push`, run `hf upload onlyoneaman/mlx-llm-bench README.md leaderboard.json leaderboard.csv data.json models.json --repo-type dataset`.
-4. **`dataset_sha` in `leaderboard.json` matches `dataset_sha()` from `utils.py`** (content-based hash including the validators sidecar). `bench export` will refuse stale entries unless `--allow-stale` is passed.
+4. **`dataset_sha` in `leaderboard.json` matches `dataset_sha()` from `utils.py`** (content-based hash including the validators sidecar). `bench export` refuses stale entries unless `--allow-stale` is passed.
 5. **`pytest tests/`** is green — see `tests/test_scoring.py`.
-5. **No stale `notes` in `models.json`** referencing benchmarks the model no longer leads or behaviors that have been disproven on this dataset.
+6. **Model `notes` in `models.json` are qualitative** — observed strengths/weaknesses, not specific accuracy/speed numbers (which drift every rerun). Reach for `leaderboard.csv` for exact metrics.
 
 If any check fails, fix the docs before pushing. Stale docs erode trust faster than incomplete features.
 

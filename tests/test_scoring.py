@@ -405,3 +405,49 @@ class TestHttpErrorTagging:
         pred, fmt_ok, correct, vres = _score(ex, "__ERROR__: timeout", fmt="json")
         assert correct is False
         assert fmt_ok is False
+
+
+# ---------- multi-seed misses aggregation ----------
+
+class TestMultiSeedMissesAggregation:
+    """Catches the bug where _write_summary / cmd_compare listed per-seed
+    misses instead of per-example majority-vote misses."""
+
+    def _two_runs_with_seeds(self, tmp_path):
+        from mlx_llm_bench.utils import stats
+        # Example 0 passes majority (2/3), example 1 fails majority (1/3).
+        rows = [
+            # ex 0
+            {"task": "sentiment", "i": 0, "correct": True, "format_ok": True, "time_s": 0.1, "seed": 1, "label": "positive", "pred": "positive", "text": "x", "difficulty": "easy"},
+            {"task": "sentiment", "i": 0, "correct": False, "format_ok": True, "time_s": 0.1, "seed": 2, "label": "positive", "pred": "negative", "text": "x", "difficulty": "easy"},
+            {"task": "sentiment", "i": 0, "correct": True, "format_ok": True, "time_s": 0.1, "seed": 3, "label": "positive", "pred": "positive", "text": "x", "difficulty": "easy"},
+            # ex 1
+            {"task": "sentiment", "i": 1, "correct": False, "format_ok": True, "time_s": 0.1, "seed": 1, "label": "negative", "pred": "positive", "text": "y", "difficulty": "easy"},
+            {"task": "sentiment", "i": 1, "correct": True, "format_ok": True, "time_s": 0.1, "seed": 2, "label": "negative", "pred": "negative", "text": "y", "difficulty": "easy"},
+            {"task": "sentiment", "i": 1, "correct": False, "format_ok": True, "time_s": 0.1, "seed": 3, "label": "negative", "pred": "positive", "text": "y", "difficulty": "easy"},
+        ]
+        return rows
+
+    def test_summary_misses_match_majority_vote(self, tmp_path):
+        # Build a rdir with meta + results, call _write_summary, parse misses.
+        from mlx_llm_bench.cli import _write_summary
+        rs = self._two_runs_with_seeds(tmp_path)
+        rdir = tmp_path / "fake_run"
+        rdir.mkdir()
+        (rdir / "meta.json").write_text(json.dumps({
+            "run_id": "test", "model_id": "t", "model_key": "t", "backend": "mlx-lm",
+            "format": "json", "seeds": [1, 2, 3], "dataset_sha": "x", "started_at": "",
+            "wall_s": 1, "status": "ok",
+        }))
+        (rdir / "results.json").write_text(json.dumps({
+            "model_id": "t", "load_s": 1.0, "results": rs,
+        }))
+        _write_summary(rdir)
+        summary = (rdir / "summary.md").read_text()
+        # Example 0 majority-passed → should NOT appear in misses
+        # Example 1 majority-failed → SHOULD appear once
+        misses_section = summary.split("## Misses")[1]
+        assert misses_section.count("**negative → positive**") == 1, \
+            "Example 1 (majority-failed) should appear exactly once"
+        assert "**positive → negative**" not in misses_section, \
+            "Example 0 (majority-passed) should not appear in misses"

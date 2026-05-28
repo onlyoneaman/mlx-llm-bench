@@ -11,7 +11,7 @@
     "cpu_cores": "10 (4 performance and 6 efficiency)",
     "memory": "16 GB"
   },
-  "exported_at": "2026-05-29T03:05:29",
+  "exported_at": "2026-05-29T03:50:02",
   "methodology": {
     "temperature": 0.0,
     "max_tokens": 250,
@@ -350,25 +350,25 @@
       "backend": "mlx-lm",
       "format": "json",
       "size_gb": 4.4,
-      "overall_acc": 80.0,
+      "overall_acc": 80.8,
       "overall_ci": [
-        72.1,
-        86.1
+        73.0,
+        86.7
       ],
-      "strict_acc": 80.0,
+      "strict_acc": 80.8,
       "strict_ci": [
-        72.1,
-        86.1
+        73.0,
+        86.7
       ],
       "format_ok_rate": 100.0,
       "sentiment_acc": 97.0,
       "topic_acc": 77.8,
       "spam_acc": 93.5,
       "easy_acc": 89.7,
-      "hard_acc": 63.8,
+      "hard_acc": 66.0,
       "hard_ci": [
-        49.5,
-        76.0
+        51.7,
+        77.8
       ],
       "avg_inference_s": 12.177,
       "load_s": 2.2,

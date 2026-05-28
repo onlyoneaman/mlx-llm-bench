@@ -8,15 +8,18 @@ Built around the **16GB Mac mini class** — focuses on candidates that actually
 
 ## What it measures
 
-Three classification tasks with balanced easy + hard examples (68 total):
+Four tasks with balanced easy + hard examples (n=125 total):
 
-- **Sentiment** — positive / negative (15 easy + 8 hard, incl. sarcasm, litotes, faint praise)
-- **Topic** — world / sports / business / tech (16 easy + 8 hard, incl. tech-keyword pressure)
-- **Spam** — spam / ham (14 easy + 7 hard, incl. sophisticated BEC scams)
+- **Sentiment** — positive / negative (21 easy + 12 hard, incl. sarcasm, litotes, faint praise)
+- **Topic** — world / sports / business / tech (24 easy + 12 hard, incl. tech-keyword pressure)
+- **Spam** — spam / ham (20 easy + 11 hard, incl. sophisticated BEC scams)
+- **IFEval** — instruction-following (13 easy + 12 hard, incl. exact word count, letter exclusion, format constraints)
 
-Each model gets the same prompts at `temp=0`, response parsed to a single label, scored exact-match.
+Classification uses JSON-constrained output (model replies `{"label": "x"}`). IFEval uses raw prompts with python-regex validators per item — pass iff ALL of an item's validators pass.
 
-The easy / hard split is the key signal — strong models often max out easy and diverge dramatically on hard.
+Each model gets the same prompts at `temp=0`. `format_ok` is tracked separately from `correct` so format-following ability is a first-class metric.
+
+The easy / hard split is the key signal — strong models often max out easy and diverge on hard.
 
 ## Quick start
 
@@ -49,29 +52,31 @@ cd mlx-llm-bench
 | `bench compare <id1> <id2>` | Side-by-side accuracy + miss diff |
 | `bench report` | Generate `RESULTS.md` (latest per model) |
 | `bench export` | Write `leaderboard.{json,csv}` for committing |
+| `bench rescore [--sha S]` | Re-apply scoring to saved results in place (no re-runs needed) |
+| `bench inspect <run-id> [--task T] [--i N]` | Show raw model outputs for inspection (misses by default) |
 | `bench serve <model>` | Start OpenAI-compatible HTTP server |
 
-## Current leaderboard (Mac mini M4 16GB · n=100 · JSON format)
+## Current leaderboard (Mac mini M4 16GB · n=125 · JSON format)
 
-Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 2f0dc8844537`.
+Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 4546a1df566c`. **n=125 = 100 classification examples (sentiment + topic + spam) + 25 IFEval instruction-following examples.**
 
 | Rank | Model | Acc (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
 |---|---|---|---|---|---|---|---|
-| 1 | **gemma3-12b-qat** | **93.0%** [86–97] | 98% | 83% | 100% | 1.38s | 8.0GB |
-| 2 | **llama-3.2-3b** | **91.0%** [84–95] | 97% | 80% | 100% | **0.42s** | **1.8GB** |
-| 3 | ministral-3-8b | 90.0% [83–94] | 98% | 74% | 100% | 3.55s | 5.6GB |
-| 4 | gemma4-e4b | 89.0% [81–94] | 98% | 71% | 100% | 0.58s | 5.2GB |
-| 4 | llama-3.1-8b | 89.0% [81–94] | 97% | 74% | 100% | 0.93s | 4.2GB |
-| 4 | mistral-nemo-minitron-8b | 89.0% [81–94] | 97% | 74% | 100% | 12.18s | 4.4GB |
-| 7 | nemotron-nano-9b | 88.0% [80–93] | 94% | 77% | 95% | 9.82s | 5.0GB |
-| 7 | qwen3-8b | 88.0% [80–93] | 97% | 71% | 100% | 0.83s | 5.0GB |
-| 9 | phi4-mini-instruct | 87.0% [79–92] | 95% | 71% | 100% | 0.53s | 2.2GB |
-| 10 | qwen2.5-coder-7b | 86.0% [78–92] | 97% | 66% | 100% | 0.89s | 4.7GB |
-| 11 | gemma3-4b-qat | 85.0% [77–91] | 94% | 69% | 99% | 0.54s | 2.6GB |
-| 12 | hermes-3-llama-3.2-3b | 80.0% [71–87] | 92% | 57% | **28%** ⚠️ | 0.39s | 1.7GB |
-| 13 | smollm3-3b | 77.0% [68–84] | 88% | 57% | 97% | 0.58s | 1.8GB |
-| 14 | deepseek-r1-distill-7b | 64.0% [54–73] | 69% | 54% | **38%** | 10.11s | 4.5GB |
-| 15 | phi4-mini-reasoning | 52.0% [42–62] | 54% | 49% | **27%** | 6.08s | 2.2GB |
+| 1 | **gemma3-12b-qat** | **92.8%** [87–96] | 97% | 85% | 100% | 2.24s | 8.0GB |
+| 2 | **llama-3.2-3b** | **92.0%** [86–96] | 97% | 83% | 100% | **0.74s** | **1.8GB** |
+| 3 | gemma4-e4b | 90.4% [84–94] | 99% | 77% | 100% | 0.82s | 5.2GB |
+| 3 | ministral-3-8b | 90.4% [84–94] | 97% | 79% | 100% | 4.21s | 5.6GB |
+| 5 | llama-3.1-8b | 89.6% [83–94] | 97% | 77% | 100% | 1.63s | 4.2GB |
+| 5 | qwen3-8b | 89.6% [83–94] | 97% | 77% | 100% | 1.25s | 5.0GB |
+| 7 | gemma3-4b-qat | 85.6% [78–91] | 95% | 70% | 99% | 0.89s | 2.6GB |
+| 8 | phi4-mini-instruct | 84.8% [78–90] | 94% | 70% | 100% | 0.96s | 2.2GB |
+| 8 | qwen2.5-coder-7b | 84.8% [78–90] | 96% | 66% | 100% | 1.26s | 4.7GB |
+| 10 | mistral-nemo-minitron-8b | 80.0% [72–86] | 90% | 64% | 100% | 12.18s | 4.4GB |
+| 11 | smollm3-3b | 79.2% [71–85] | 88% | 64% | 98% | 0.86s | 1.8GB |
+| 12 | nemotron-nano-9b | 78.4% [70–85] | 86% | 66% | 96% | 10.13s | 5.0GB |
+| 13 | hermes-3-llama-3.2-3b | 74.4% [66–81] | 87% | 53% | **42%** ⚠️ | 0.75s | 1.7GB |
+| 14 | deepseek-r1-distill-7b | 59.2% [50–67] | 64% | 51% | **50%** | 10.06s | 4.5GB |
+| 15 | phi4-mini-reasoning | 48.0% [39–57] | 53% | 40% | **42%** | 6.07s | 2.2GB |
 
 ## Which model should I run?
 

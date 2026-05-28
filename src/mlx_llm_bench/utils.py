@@ -29,7 +29,7 @@ VENVS = {
     "openai": Path.home() / ".local/pipx/venvs/mlx-lm/bin/python",
 }
 
-TASKS = ["sentiment", "topic", "spam"]
+TASKS = ["sentiment", "topic", "spam", "ifeval"]
 
 
 # ---------- model registry ----------

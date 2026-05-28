@@ -103,5 +103,32 @@
   {"task": "spam", "text": "Hi, this is John from IT. We noticed unusual login activity — please reset your password at this link.", "label": "spam", "difficulty": "hard"},
   {"task": "spam", "text": "Per our discussion, the new vendor wire instructions are attached. Please use these going forward.", "label": "spam", "difficulty": "hard"},
   {"task": "spam", "text": "Following up on my last email about the Q3 budget review. Whenever you get a chance.", "label": "ham", "difficulty": "hard"},
-  {"task": "spam", "text": "Hi - the marketing team wants to know if you can join the Q3 planning call next Thursday at 2pm.", "label": "ham", "difficulty": "hard"}
+  {"task": "spam", "text": "Hi - the marketing team wants to know if you can join the Q3 planning call next Thursday at 2pm.", "label": "ham", "difficulty": "hard"},
+
+  {"task": "ifeval", "text": "Explain photosynthesis in exactly 5 words.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "word_count_exact", "n": 5}]},
+  {"task": "ifeval", "text": "Describe the color blue using fewer than 8 words.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "word_count_max", "n": 8}]},
+  {"task": "ifeval", "text": "Write a description of the ocean using at least 30 words.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "word_count_min", "n": 30}]},
+  {"task": "ifeval", "text": "Briefly explain how computers store data. Include the word 'binary'.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "contains_word", "word": "binary"}]},
+  {"task": "ifeval", "text": "Explain machine learning. Use both the word 'algorithm' and the word 'training'.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "contains_word", "word": "algorithm"}, {"type": "contains_word", "word": "training"}]},
+  {"task": "ifeval", "text": "Describe a guitar. Include the word 'strings' somewhere in your reply.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "contains_word", "word": "strings"}]},
+  {"task": "ifeval", "text": "Respond in ALL CAPITAL LETTERS: what is the capital of France?", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "regex_match", "pattern": "^[A-Z0-9\\s\\.,!?'\"\\-:;()]+$"}]},
+  {"task": "ifeval", "text": "Respond in lowercase letters only: name three planets.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "regex_match", "pattern": "^[a-z0-9\\s\\.,!?'\"\\-:;()]+$"}]},
+  {"task": "ifeval", "text": "Answer with only the word YES or only the word NO: is the Pacific Ocean larger than the Atlantic?", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "exact_word_set", "options": ["YES", "NO"]}]},
+  {"task": "ifeval", "text": "Output exactly the string: The quick brown fox jumps over the lazy dog. Nothing else.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "contains_exact", "text": "The quick brown fox jumps over the lazy dog."}]},
+  {"task": "ifeval", "text": "Begin your response with the word 'Indeed' followed by one sentence about the sky.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "starts_with", "prefix": "Indeed"}]},
+  {"task": "ifeval", "text": "End your response with an exclamation mark. Describe a fast car.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "ends_with", "suffix": "!"}]},
+  {"task": "ifeval", "text": "List 3 colors as a JSON array. Output only the JSON array, nothing else.", "label": "ifeval", "difficulty": "easy", "validators": [{"type": "json_array_length", "n": 3}]},
+
+  {"task": "ifeval", "text": "Describe a sunset without using the words 'red', 'orange', or 'beautiful'.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "not_contains_word", "word": "red"}, {"type": "not_contains_word", "word": "orange"}, {"type": "not_contains_word", "word": "beautiful"}, {"type": "word_count_min", "n": 10}]},
+  {"task": "ifeval", "text": "Talk about the ocean without using the word 'water' anywhere.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "not_contains_word", "word": "water"}, {"type": "word_count_min", "n": 15}]},
+  {"task": "ifeval", "text": "Describe a dog without using the letter 'e' anywhere in your response.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "not_contains_letter", "letter": "e"}, {"type": "word_count_min", "n": 8}]},
+  {"task": "ifeval", "text": "Describe a tree in at least 12 words. Your response must not contain any commas.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "not_contains_chars", "chars": ","}, {"type": "word_count_min", "n": 12}]},
+  {"task": "ifeval", "text": "Describe a close friend in exactly 12 words.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "word_count_exact", "n": 12}]},
+  {"task": "ifeval", "text": "Define the word 'curious' using fewer than 6 words. Do not use the word 'curious'.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "word_count_max", "n": 6}, {"type": "not_contains_word", "word": "curious"}]},
+  {"task": "ifeval", "text": "Write exactly three sentences about the moon. Each sentence must end with a period.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "sentence_count_exact", "n": 3}]},
+  {"task": "ifeval", "text": "Number your three reasons '1.', '2.', '3.' for why exercise is healthy.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "regex_match", "pattern": "(?s).*1\\..*2\\..*3\\..*"}]},
+  {"task": "ifeval", "text": "Explain rain in exactly two paragraphs separated by a blank line.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "paragraph_count_exact", "n": 2}]},
+  {"task": "ifeval", "text": "Write a description of music using these three words: rhythm, melody, harmony.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "contains_word", "word": "rhythm"}, {"type": "contains_word", "word": "melody"}, {"type": "contains_word", "word": "harmony"}]},
+  {"task": "ifeval", "text": "Output a JSON object with keys 'name' and 'age' describing a sample person. Output only the JSON object.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "json_has_keys", "keys": ["name", "age"]}]},
+  {"task": "ifeval", "text": "Output a JSON object with the exact keys 'answer' and 'confidence' for the question: is fire hot? Output only the JSON object.", "label": "ifeval", "difficulty": "hard", "validators": [{"type": "json_has_keys", "keys": ["answer", "confidence"]}]}
 ]

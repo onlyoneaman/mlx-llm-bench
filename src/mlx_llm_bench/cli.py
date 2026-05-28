@@ -357,6 +357,62 @@ def cmd_compare(args):
     print(f"misses shared:            {len(miss_a & miss_b)}")
 
 
+def cmd_inspect(args):
+    """Show raw model outputs from a run — by default, only the misses.
+    Filters: --task <name>, --i <index> (show one example fully), --all (show
+    correct items too)."""
+    res_p = RUNS_DIR / args.run_id / "results.json"
+    if not res_p.exists():
+        sys.exit(f"no results at {res_p}")
+    res = json.loads(res_p.read_text())
+    rs = res["results"]
+    meta = json.loads((RUNS_DIR / args.run_id / "meta.json").read_text())
+
+    if args.i is not None:
+        # Show one example fully across all seeds it appears in
+        matched = [r for r in rs if r["i"] == args.i]
+        if not matched:
+            sys.exit(f"no example with i={args.i}")
+        for r in matched:
+            _print_record(r, full=True)
+        return
+
+    # Default: show misses (optionally filter by task)
+    rows = rs if args.all else [r for r in rs if not r["correct"]]
+    if args.task:
+        rows = [r for r in rows if r["task"] == args.task]
+    if not rows:
+        print("no rows match filter")
+        return
+
+    print(f"# {meta['run_id']}  ({meta.get('model_key','?')}, {meta.get('format','text')}, n={len(rs)})")
+    print(f"showing {len(rows)} row(s){' (misses only)' if not args.all else ''}{f' filter task={args.task}' if args.task else ''}")
+    print()
+    for r in rows:
+        _print_record(r, full=False)
+
+
+def _print_record(r, full=False):
+    """Compact human-readable print of one result row."""
+    mark = "OK" if r["correct"] else "XX"
+    fmt = "" if r.get("format_ok", True) else " !fmt"
+    diff = r.get("difficulty", "?")
+    print(f"[i={r['i']:>3} {r['task']:9s}/{diff:4s} seed={r.get('seed','?')}] {mark}{fmt}  label={r.get('label')}  pred={r.get('pred')}  ({r.get('time_s')}s)")
+    print(f"  TEXT: {r['text']}")
+    raw = r.get("raw", "")
+    if not full and len(raw) > 400:
+        raw_show = raw[:400] + f"\n  ... [truncated, {len(raw)} chars total]"
+    else:
+        raw_show = raw
+    print(f"  RAW : {raw_show.replace(chr(10), chr(10) + '        ')}")
+    if "validators" in r:
+        print(f"  VALIDATORS:")
+        for v in r["validators"]:
+            v_mark = "✓" if v["pass"] else "✗"
+            print(f"    {v_mark} {v['type']}")
+    print()
+
+
 def cmd_serve(args):
     try:
         m = get_model(args.model)
@@ -369,6 +425,38 @@ def cmd_serve(args):
     print(f"starting {server_mod} for {m['model_id']} on http://{args.host}:{args.port}")
     print(f"  (Ctrl-C to stop. OpenAI-compatible: POST /v1/chat/completions)")
     os.execvp(cmd[0], cmd)
+
+
+def cmd_rescore(args):
+    """Re-apply the canonical scoring logic to saved results.json files.
+
+    Use this after improving parse_answer / validate_ifeval — historical raw
+    outputs get re-scored without re-running the models. The leaderboard
+    export will then reflect the new scoring on the next `bench export`.
+    """
+    from mlx_llm_bench.rescore import rescore_run
+    data = json.loads(DATA_FILE.read_text())
+    data_by_i = {i: ex for i, ex in enumerate(data)}
+    if not RUNS_DIR.exists():
+        print("no runs dir")
+        return
+    total_runs = 0
+    total_changed = 0
+    for rdir in sorted(RUNS_DIR.iterdir()):
+        meta_p = rdir / "meta.json"
+        if not meta_p.exists():
+            continue
+        meta = json.loads(meta_p.read_text())
+        if meta.get("status") != "ok":
+            continue
+        if args.sha and meta.get("dataset_sha") != args.sha:
+            continue
+        n, ch = rescore_run(rdir, data_by_i)
+        if n > 0:
+            print(f"  {meta.get('model_key','?'):28s} fmt={meta.get('format','?'):4s} sha={meta.get('dataset_sha','?')}  changed: {ch}/{n}")
+            total_runs += 1
+            total_changed += ch
+    print(f"\nRescored {total_runs} run(s), {total_changed} total cell changes.")
 
 
 def cmd_export(_args):
@@ -564,6 +652,13 @@ def main():
     sp.add_argument("run_id")
     sp.set_defaults(fn=cmd_show)
 
+    sp = sub.add_parser("inspect", help="show raw model outputs (misses by default)")
+    sp.add_argument("run_id")
+    sp.add_argument("--task", default=None, help="filter to one task (sentiment/topic/spam/ifeval)")
+    sp.add_argument("--i", type=int, default=None, help="show one example by dataset index")
+    sp.add_argument("--all", action="store_true", help="show correct items too, not just misses")
+    sp.set_defaults(fn=cmd_inspect)
+
     sp = sub.add_parser("compare", help="compare two runs (paired McNemar)")
     sp.add_argument("id1")
     sp.add_argument("id2")
@@ -572,6 +667,10 @@ def main():
     sub.add_parser("report", help="aggregate latest-per-model into RESULTS.md").set_defaults(fn=cmd_report)
 
     sub.add_parser("export", help="export leaderboard.{json,csv} for committing").set_defaults(fn=cmd_export)
+
+    sp = sub.add_parser("rescore", help="re-apply scoring to historical results.json files in place")
+    sp.add_argument("--sha", default=None, help="restrict to one dataset_sha")
+    sp.set_defaults(fn=cmd_rescore)
 
     sp = sub.add_parser("serve", help="start OpenAI-compatible server for a model")
     sp.add_argument("model")

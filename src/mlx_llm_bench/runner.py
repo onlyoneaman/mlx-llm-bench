@@ -62,40 +62,10 @@ PROMPT_TEMPLATES = {
     },
 }
 
-VALID = {
-    "sentiment": {"positive", "negative"},
-    "topic": {"world", "sports", "business", "tech"},
-    "spam": {"spam", "ham"},
-}
-
-_THINK_RE = re.compile(r"<think>.*?</think>|<thought>.*?</thought>", re.DOTALL | re.IGNORECASE)
-_JSON_LABEL_RE = re.compile(r'\{\s*"label"\s*:\s*"([A-Za-z]+)"\s*\}', re.IGNORECASE)
-
-
-def parse_answer(raw, task, fmt="text"):
-    """Return (pred, format_ok). format_ok = the model followed the expected
-    response shape (a valid label as the first valid-label word for text,
-    or a parseable {"label": "..."} object for json)."""
-    raw_clean = _THINK_RE.sub("", raw)
-    if fmt == "json":
-        m = _JSON_LABEL_RE.search(raw_clean)
-        if m:
-            label = m.group(1).lower()
-            if label in VALID[task]:
-                return label, True
-            return label, False
-        # fallback: scan for any valid label word, but mark format_error
-        words = re.findall(r"[A-Za-z]+", raw_clean.lower())
-        for w in words:
-            if w in VALID[task]:
-                return w, False
-        return (words[0] if words else ""), False
-    # text format
-    words = re.findall(r"[A-Za-z]+", raw_clean.lower())
-    for w in words:
-        if w in VALID[task]:
-            return w, True
-    return (words[0] if words else ""), False
+# Scoring functions are the canonical implementation in rescore.py — runner.py
+# and the `bench rescore` command both use the same logic so a re-scoring pass
+# is identical to a re-run.
+from mlx_llm_bench.rescore import parse_answer, validate_ifeval  # noqa: E402
 
 
 def _seed_mlx(seed):
@@ -114,14 +84,36 @@ def _seed_mlx(seed):
         pass
 
 
-def _record(i, ex, pred, raw, ok, format_ok, dt, seed):
-    return {
+def _record(i, ex, pred, raw, ok, format_ok, dt, seed, validator_results=None):
+    rec = {
         "i": i, "task": ex["task"], "text": ex["text"],
         "difficulty": ex.get("difficulty"),
         "label": ex["label"], "pred": pred, "raw": raw,
         "correct": ok, "format_ok": format_ok,
         "time_s": round(dt, 3), "seed": seed,
     }
+    if validator_results is not None:
+        rec["validators"] = validator_results
+    return rec
+
+
+def _build_prompt(ex, fmt):
+    """For ifeval items the example's `text` is the full prompt. For
+    classification items we wrap with the format-specific template."""
+    if ex["task"] == "ifeval":
+        return ex["text"]
+    return PROMPT_TEMPLATES[fmt][ex["task"]].format(text=ex["text"])
+
+
+def _score(ex, raw, fmt):
+    """Return (pred_string, format_ok, correct, validator_results_or_none)."""
+    if ex["task"] == "ifeval":
+        all_pass, vres = validate_ifeval(raw, ex.get("validators", []))
+        passed = sum(1 for r in vres if r["pass"])
+        pred = f"{passed}/{len(vres)} validators"
+        return pred, True, all_pass, vres
+    pred, format_ok = parse_answer(raw, ex["task"], fmt=fmt)
+    return pred, format_ok, pred == ex["label"], None
 
 
 def run_mlx_lm(data, model_id, max_tokens, fmt, seeds):
@@ -141,7 +133,7 @@ def run_mlx_lm(data, model_id, max_tokens, fmt, seeds):
         if len(seeds) > 1:
             print(f"--- seed {seed} ---", flush=True)
         for i, ex in enumerate(data):
-            prompt = PROMPT_TEMPLATES[fmt][ex["task"]].format(text=ex["text"])
+            prompt = _build_prompt(ex, fmt)
             msgs = [{"role": "user", "content": prompt}]
             formatted = tokenizer.apply_chat_template(
                 msgs, add_generation_prompt=True, tokenize=False,
@@ -153,12 +145,13 @@ def run_mlx_lm(data, model_id, max_tokens, fmt, seeds):
                 max_tokens=max_tokens, sampler=sampler, verbose=False,
             )
             dt = time.time() - t0
-            pred, format_ok = parse_answer(raw, ex["task"], fmt=fmt)
-            ok = pred == ex["label"]
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed))
+            pred, format_ok, ok, vres = _score(ex, raw, fmt)
+            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
             mark = "OK" if ok else "XX"
             fmt_flag = "" if format_ok else " !fmt"
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {ex['label']:8s} -> {pred:8s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
+            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
+            pred_str = str(pred)[:18]
+            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
     return results, load_s
 
 
@@ -179,7 +172,7 @@ def run_mlx_vlm(data, model_id, max_tokens, fmt, seeds):
         if len(seeds) > 1:
             print(f"--- seed {seed} ---", flush=True)
         for i, ex in enumerate(data):
-            prompt = PROMPT_TEMPLATES[fmt][ex["task"]].format(text=ex["text"])
+            prompt = _build_prompt(ex, fmt)
             formatted = apply_chat_template(
                 processor, config, prompt, num_images=0, enable_thinking=False,
             )
@@ -190,12 +183,13 @@ def run_mlx_vlm(data, model_id, max_tokens, fmt, seeds):
             )
             dt = time.time() - t0
             raw = out if isinstance(out, str) else getattr(out, "text", str(out))
-            pred, format_ok = parse_answer(raw, ex["task"], fmt=fmt)
-            ok = pred == ex["label"]
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed))
+            pred, format_ok, ok, vres = _score(ex, raw, fmt)
+            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
             mark = "OK" if ok else "XX"
             fmt_flag = "" if format_ok else " !fmt"
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {ex['label']:8s} -> {pred:8s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
+            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
+            pred_str = str(pred)[:18]
+            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
     return results, load_s
 
 
@@ -215,7 +209,7 @@ def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
         if len(seeds) > 1:
             print(f"--- seed {seed} ---", flush=True)
         for i, ex in enumerate(data):
-            prompt = PROMPT_TEMPLATES[fmt][ex["task"]].format(text=ex["text"])
+            prompt = _build_prompt(ex, fmt)
             payload = {
                 "model": model_name,
                 "messages": [{"role": "user", "content": prompt}],
@@ -239,12 +233,13 @@ def run_openai(data, endpoint, model_name, max_tokens, fmt, seeds):
                 raw = f"__ERROR__: {e}"
             dt = time.time() - t0
 
-            pred, format_ok = parse_answer(raw, ex["task"], fmt=fmt)
-            ok = pred == ex["label"]
-            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed))
+            pred, format_ok, ok, vres = _score(ex, raw, fmt)
+            results.append(_record(i, ex, pred, raw, ok, format_ok, dt, seed, vres))
             mark = "OK" if ok else "XX"
             fmt_flag = "" if format_ok else " !fmt"
-            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {ex['label']:8s} -> {pred:8s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
+            label_str = ex.get("label", "")[:10] if isinstance(ex.get("label"), str) else "?"
+            pred_str = str(pred)[:18]
+            print(f"  [{i+1:>2}/{len(data)}] {ex['task']:9s} {label_str:10s} -> {pred_str:18s} {mark}{fmt_flag} ({dt:.2f}s)", flush=True)
     return results, 0.0
 
 

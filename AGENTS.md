@@ -128,15 +128,22 @@ First 12 hex chars of `sha256(data.json)`. Embedded in `leaderboard.json` and in
 Auto-detected from `system_profiler SPHardwareDataType` on macOS. Lives at `hardware:` in `leaderboard.json`. Future cross-platform results should keep this schema even if the values look different.
 
 ### Prompts
-Defined in `runner.py` at the top (`PROMPT_TEMPLATES`). All three tasks share the same shape: instruction + format directive + `Text:` + `Answer:`. `temp=0`, `max_tokens=5`. Reply is parsed for the first valid label word.
+Defined in `runner.py` at the top (`PROMPT_TEMPLATES`). All three tasks share the same shape: instruction + format directive + `Text:` + `Answer:`. `temp=0`, `max_tokens=250` (safety upper bound — non-thinking models EOS at 1–3 tokens so no slowdown; reasoning-trained models need room to finish their `<think>` block before emitting the answer). Reply is parsed for the first valid label word.
 
 ### Scoring
-Exact match against `label` after extracting the first word in the model's response that's in `VALID[task]`. If none of the valid labels appear, scoring takes the first alphabetic word (will be marked wrong).
+1. Strip any `<think>...</think>` or `<thought>...</thought>` blocks from the raw output (reasoning-model CoT).
+2. Extract the first word in the remaining response that's in `VALID[task]` — that's the prediction.
+3. If none of the valid labels appear, scoring takes the first alphabetic word (will be marked wrong).
+4. Compare prediction exactly against `label`.
 
 ## Gotchas (recurring failure modes)
 
-### Qwen3 thinking mode
-Qwen3's chat template enables `<think>` blocks by default. With `max_tokens=5`, the model would output `think` and never get to an answer. `runner.py` passes `enable_thinking=False` to `apply_chat_template` for both backends. **When adding any reasoning-trained model (Qwen3 family, DeepSeek-R1 distills, Phi-4-reasoning), verify its chat template respects this kwarg.** If a model still outputs internal monologue, increase `--max-tokens` or strip thinking blocks before parsing.
+### Reasoning / thinking models
+Three layers of defense, in this order:
+1. **`enable_thinking=False`** passed to `apply_chat_template` for both backends — clean suppression for models that honor it (Qwen3, Gemma 4, SmolLM3).
+2. **`max_tokens=250`** default — gives unsuppressed reasoning room to finish; non-thinking models still EOS at 1–3 tokens so no perf hit.
+3. **`<think>` / `<thought>` stripping** in `parse_answer` — catches any leaked CoT from models that ignore `enable_thinking` (Phi-4-mini-reasoning, DeepSeek-R1 distills).
+Despite all three, dedicated reasoning models still rank badly on this benchmark (Phi-4-mini-reasoning 58.8%, DeepSeek-R1-Distill 42.6%) because their training pushes them toward CoT even for single-token answers. **Don't add pure reasoning models to the registry as if they were general chat models** — frame them as "experimental / not recommended for classification."
 
 ### mlx-lm 0.31.3 Gemma 4 E4B regression
 Issue [ml-explore/mlx-lm#1242](https://github.com/ml-explore/mlx-lm/issues/1242) — loading `mlx-community/gemma-4-e4b-it-4bit` fails with `Received 126 parameters not in model`. Workaround: use the `mlx-vlm` backend (it loads the model correctly and is the multimodal path anyway). Already configured in `models.json`. If you add other Gemma 4 variants, default to `mlx-vlm` backend until the upstream bug is fixed.
@@ -157,7 +164,18 @@ Gemma 1/2/3/3n use Google's Gemma Terms (not OSI-open). Gemma 4 is Apache 2.0. Q
 - Don't add models that don't fit 16 GB unified memory unless the user explicitly wants a "doesn't fit" baseline.
 - Don't `git push --force` to `main`.
 - Don't bump `schema_version` in `leaderboard.json` unless you're actually changing the schema — downstream consumers will assume incompatibility.
-- Don't increase `max_tokens` past 10 for classification — it slows runs and shouldn't be needed if labels are one word.
+
+## Pre-publish checklist (always run before committing or pushing)
+
+Documentation drift is the most common bug in this repo's history. Before any commit that touches code, data, or results:
+
+1. **README leaderboard table matches `leaderboard.json`.** If you re-ran benchmarks or edited `data.json`, the table in README is almost certainly stale. Regenerate by hand or skip the table and link to `leaderboard.csv`.
+2. **AGENTS.md describes the actual code.** If you changed defaults (e.g. `max_tokens` in `runner.py`), update the matching reference in the Conventions section here. The published methodology must match what `./bench run` actually does.
+3. **HuggingFace README is in sync** with the GitHub README. After `git push`, run `hf upload onlyoneaman/mlx-llm-bench README.md leaderboard.json leaderboard.csv data.json models.json --repo-type dataset`.
+4. **`dataset_sha` in `leaderboard.json` matches `sha256(data.json)`.** If `bench export` didn't run after a data edit, the snapshot is for an older dataset.
+5. **No stale `notes` in `models.json`** referencing benchmarks the model no longer leads or behaviors that have been disproven on this dataset.
+
+If any check fails, fix the docs before pushing. Stale docs erode trust faster than incomplete features.
 
 ## When the user asks for something not covered here
 

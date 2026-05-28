@@ -53,15 +53,26 @@ cd mlx-llm-bench
 
 ## Current leaderboard (Mac mini M4 16GB)
 
-Latest snapshot at `leaderboard.csv`. Top picks:
+Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below is regenerated from `bench export` against `dataset_sha cb96152deb7f`.
 
 | Model | Overall | Easy | Hard | Avg time | Size |
 |---|---|---|---|---|---|
-| **gemma3-4b-qat** | **92.6%** | 100% | 78% | 0.36s | 2.6GB |
-| gemma4-e4b | 89.7% | 100% | 70% | 0.28s | 5.2GB |
-| qwen3-8b | 86.8% | 100% | 61% | 0.47s | 5.0GB |
-| llama-3.2-3b | 80.9% | 93% | 57% | 0.27s | 1.8GB |
-| smollm3-3b | 66.2% | 80% | 39% | 0.38s | 1.8GB |
+| **gemma3-12b-qat** | **92.6%** | 98% | 83% | 0.83s | 8.0GB |
+| gemma4-e4b | 89.7% | 98% | 74% | 0.28s | 5.2GB |
+| gemma3-4b-qat | 89.7% | 98% | 74% | 0.35s | 2.6GB |
+| qwen3-8b | 86.8% | 98% | 65% | 0.47s | 5.0GB |
+| qwen2.5-coder-7b | 82.4% | 98% | 52% | 0.62s | 4.7GB |
+| llama-3.2-3b | 77.9% | 91% | 52% | 0.29s | 1.8GB |
+| smollm3-3b | 66.2% | 78% | 44% | 1.45s | 1.8GB |
+| phi4-mini-reasoning | 58.8% | 67% | 44% | 5.94s | 2.2GB |
+| deepseek-r1-distill-7b | 42.6% | 42% | 44% | 10.01s | 4.5GB |
+
+**Three Pareto winners** for the 16 GB target:
+- **Most accurate**: `gemma3-12b-qat` (92.6%, tight on 16 GB)
+- **Fastest at top tier**: `gemma4-e4b` (0.28s/ex, multimodal)
+- **Smallest at top tier**: `gemma3-4b-qat` (2.6 GB on disk)
+
+> Caveat on statistical significance: at n=68, the 95% Wilson interval on a single accuracy is roughly ±11 pp. Treat sub-3-point gaps as noise until the dataset grows or paired tests are added.
 
 ## Annotation rubric
 

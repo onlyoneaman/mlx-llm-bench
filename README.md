@@ -51,28 +51,32 @@ cd mlx-llm-bench
 | `bench export` | Write `leaderboard.{json,csv}` for committing |
 | `bench serve <model>` | Start OpenAI-compatible HTTP server |
 
-## Current leaderboard (Mac mini M4 16GB)
+## Current leaderboard (Mac mini M4 16GB · n=100 · JSON format)
 
-Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below is regenerated from `bench export` against `dataset_sha cb96152deb7f`.
+Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 2f0dc8844537`.
 
-| Model | Overall | Easy | Hard | Avg time | Size |
-|---|---|---|---|---|---|
-| **gemma3-12b-qat** | **92.6%** | 98% | 83% | 0.83s | 8.0GB |
-| gemma4-e4b | 89.7% | 98% | 74% | 0.28s | 5.2GB |
-| gemma3-4b-qat | 89.7% | 98% | 74% | 0.35s | 2.6GB |
-| qwen3-8b | 86.8% | 98% | 65% | 0.47s | 5.0GB |
-| qwen2.5-coder-7b | 82.4% | 98% | 52% | 0.62s | 4.7GB |
-| llama-3.2-3b | 77.9% | 91% | 52% | 0.29s | 1.8GB |
-| smollm3-3b | 66.2% | 78% | 44% | 1.45s | 1.8GB |
-| phi4-mini-reasoning | 58.8% | 67% | 44% | 5.94s | 2.2GB |
-| deepseek-r1-distill-7b | 42.6% | 42% | 44% | 10.01s | 4.5GB |
+| Model | Overall (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
+|---|---|---|---|---|---|---|
+| **gemma3-12b-qat** | **93.0%** [86–97] | 98% | 83% | 100% | 1.38s | 8.0GB |
+| **llama-3.2-3b** | **91.0%** [84–95] | 97% | 80% | 100% | **0.42s** | **1.8GB** |
+| gemma4-e4b | 89.0% [81–94] | 98% | 71% | 100% | 0.58s | 5.2GB |
+| qwen3-8b | 88.0% [80–93] | 97% | 71% | 100% | 0.83s | 5.0GB |
+| qwen2.5-coder-7b | 86.0% [78–92] | 97% | 66% | 100% | 0.89s | 4.7GB |
+| gemma3-4b-qat | 85.0% [77–91] | 94% | 69% | 99% | 0.54s | 2.6GB |
+| smollm3-3b | 77.0% [68–84] | 88% | 57% | 97% | 0.58s | 1.8GB |
+| deepseek-r1-distill-7b | 64.0% [54–73] | 69% | 54% | **38%** | 10.11s | 4.5GB |
+| phi4-mini-reasoning | 52.0% [42–62] | 54% | 49% | **27%** | 6.08s | 2.2GB |
 
-**Three Pareto winners** for the 16 GB target:
-- **Most accurate**: `gemma3-12b-qat` (92.6%, tight on 16 GB)
-- **Fastest at top tier**: `gemma4-e4b` (0.28s/ex, multimodal)
-- **Smallest at top tier**: `gemma3-4b-qat` (2.6 GB on disk)
+## Which model should I run?
 
-> Caveat on statistical significance: at n=68, the 95% Wilson interval on a single accuracy is roughly ±11 pp. Treat sub-3-point gaps as noise until the dataset grows or paired tests are added.
+For a **16 GB Mac mini class** machine, picking from this bench's evidence:
+
+- 🎯 **Default daily driver: `llama-3.2-3b`.** 91% accuracy at 0.42 s/example in a 1.8 GB footprint. Pareto-dominates every model except gemma3-12b — and the 2-point CI overlap with 12B means the difference may not even be real on this dataset.
+- 🧠 **Maximum accuracy: `gemma3-12b-qat`.** 93% but 1.4 s/example and 8 GB. Use when accuracy matters more than speed, and close other apps first to avoid swap pressure.
+- 👁️ **Multimodal: `gemma4-e4b`.** Vision + native audio. 89% on text classification. The only fully-multimodal model in the registry; pick it when the task touches images or speech.
+- ❌ **Don't use for classification**: `phi4-mini-reasoning`, `deepseek-r1-distill-7b`. Reasoning-tuned models emit `<think>` blocks instead of labels — format compliance drops to 27–38% and they run 10–24× slower than alternatives. Use them for math/CoT tasks where they shine, not here.
+
+> Caveat on significance: at n=100, 95% Wilson CIs are ±8 pp around accuracies in the 85-95% range. Sub-3-point gaps are likely noise. Use `./bench compare <id1> <id2>` to get the paired McNemar p-value for a real significance test.
 
 ## Annotation rubric
 

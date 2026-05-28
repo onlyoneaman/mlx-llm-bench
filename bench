@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# bench — entrypoint. Dispatches to cli.py via the mlx-lm venv's Python.
+# bench — entrypoint. Runs cli.py as a module via the mlx-lm venv's Python.
 # Per-run inference subprocesses to the right venv from cli.py.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$HOME/.local/pipx/venvs/mlx-lm/bin/python" "$DIR/src/mlx_llm_bench/cli.py" "$@"
+export PYTHONPATH="$DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$HOME/.local/pipx/venvs/mlx-lm/bin/python" -m mlx_llm_bench.cli "$@"

@@ -3,54 +3,62 @@
     "model_id": "mlx-community/Qwen3-8B-4bit",
     "backend": "mlx-lm",
     "size_gb": 5.0,
-    "notes": "General purpose. MMLU 76.89, MATH 60.80 (primary)."
+    "notes": "Solid generalist on this bench. 88% overall, 100% format compliance, no standout strength."
   },
   "qwen2.5-coder-7b": {
     "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
     "backend": "mlx-lm",
     "size_gb": 4.7,
-    "notes": "Coding specialist. HumanEval 88.4 (primary)."
+    "notes": "Code-specialist but holds up at classification (86%). Hard-task drop is real (66%). Slower than peers."
   },
   "gemma4-e4b": {
     "model_id": "mlx-community/gemma-4-e4b-it-4bit",
     "backend": "mlx-vlm",
     "size_gb": 5.2,
-    "notes": "Multimodal (vision + audio). mlx-lm 0.31.3 incompatible (issue #1242)."
+    "notes": "Only multimodal model in the registry (vision + audio). 89% on this text bench. mlx-lm 0.31.3 incompatible (issue #1242) — use mlx-vlm backend."
   },
   "gemma3-12b-qat": {
     "model_id": "mlx-community/gemma-3-12b-it-qat-4bit",
     "backend": "mlx-lm",
     "size_gb": 8.0,
-    "notes": "QAT 4-bit. Tight on 16GB. MMLU 74.5 (primary)."
+    "notes": "Highest accuracy on this bench (93%). Slowest non-reasoning model (1.4s/ex). Tight on 16GB — close apps before running."
   },
   "gemma3-4b-qat": {
     "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
     "backend": "mlx-lm",
     "size_gb": 2.6,
-    "notes": "Multimodal small. MMLU 59.6 (primary)."
+    "notes": "Good quality/size tradeoff (85%, 2.6GB). Was top non-12B pick before JSON default; Llama 3.2 3B now leads at smaller size."
   },
   "phi4-mini-reasoning": {
     "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
     "backend": "mlx-lm",
     "size_gb": 2.2,
-    "notes": "Math/STEM reasoning. MATH-500 94.6 (primary)."
+    "notes": "Bad fit for classification (52%, 27% format_ok). Reasoning-tuned model emits CoT instead of labels. 12x slower than non-reasoning peers."
   },
   "smollm3-3b": {
     "model_id": "mlx-community/SmolLM3-3B-4bit",
     "backend": "mlx-lm",
     "size_gb": 1.8,
-    "notes": "Fast generalist, 128K context. IFEval 76.7 (primary)."
+    "notes": "Weak overall (77%) but big improvement when forced to JSON format (+11 vs text). Format compliance 97%."
   },
   "deepseek-r1-distill-7b": {
     "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
     "backend": "mlx-lm",
     "size_gb": 4.5,
-    "notes": "Reasoning distill. MATH-500 92.8 (primary)."
+    "notes": "Bad fit for classification (64%, 38% format_ok). Reasoning distill emits <think> blocks; 23x slower than peers."
   },
   "llama-3.2-3b": {
     "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
     "backend": "mlx-lm",
     "size_gb": 1.8,
-    "notes": "Fast lightweight default."
+    "notes": "Surprise top pick on this bench (91%, 0.42s, 1.8GB). Pareto-dominates everything except gemma3-12b-qat — and CIs overlap, so the gap may be noise."
+  },
+  "apple-foundation": {
+    "model_id": "apple-foundation-3b",
+    "backend": "openai",
+    "endpoint": "http://localhost:9999/v1",
+    "remote_model": "foundation",
+    "size_gb": 0.0,
+    "notes": "Apple on-device ~3B FM via afm (brew install scouzi1966/afm/afm). Requires macOS 26.2+, Xcode 26.5+, Apple Intelligence enabled, and `afm` server running."
   }
 }

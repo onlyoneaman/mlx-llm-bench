@@ -33,8 +33,9 @@ mlx-llm-bench/
 ├── runs/                  per-run audit trail (gitignored, local only)
 ├── archive/               historical leaderboard snapshots (gitignored)
 ├── src/mlx_llm_bench/
-│   ├── cli.py             subcommands: list/pull/run/history/show/compare/report/export/serve
-│   └── runner.py          loads model, runs prompts, parses labels
+│   ├── cli.py             argparse + subcommand handlers + run lifecycle
+│   ├── runner.py          loads model, runs prompts, parses labels (per-venv)
+│   └── utils.py           pure helpers: registry, cache, hardware, SHA, stats
 ├── pyproject.toml
 ├── README.md              public-facing
 ├── AGENTS.md              this file
@@ -53,10 +54,18 @@ mlx-llm-bench/
 
 ### "Add a new model" / "Try model X"
 
+Three backend types supported:
+
+| Backend | When | Loading |
+|---|---|---|
+| `mlx-lm` | Text-only HF models (Qwen, Llama, Phi, SmolLM, Gemma 3, …) | `snapshot_download` + `mlx_lm.load` |
+| `mlx-vlm` | Multimodal HF models OR models broken on mlx-lm (Gemma 4 family — see Gotchas) | `snapshot_download` + `mlx_vlm.load` |
+| `openai` | Any OpenAI-compatible HTTP server (Apple FM via `afm`, Ollama, LM Studio, `mlx_lm.server`, …) | None on our side — server is responsible |
+
+**HF-backed models (mlx-lm / mlx-vlm):**
 1. Find its 4-bit MLX repo on huggingface.co/mlx-community (or lmstudio-community if not on mlx-community). Verify it exists.
 2. Choose a stable short key (lowercase-hyphenated, e.g. `phi4-mini-reasoning`).
-3. Decide backend: `mlx-lm` for text-only, `mlx-vlm` for multimodal or models that fail on mlx-lm (e.g. Gemma 4 family — see Gotchas).
-4. Edit `models.json`:
+3. Edit `models.json`:
    ```json
    "my-new-model": {
      "model_id": "mlx-community/<exact-repo-name>",
@@ -65,10 +74,32 @@ mlx-llm-bench/
      "notes": "<one-line: what it's good at, with a primary-source benchmark if you have one>"
    }
    ```
-5. `./bench pull my-new-model`
-6. `./bench run my-new-model`
-7. `./bench export` — refreshes `leaderboard.{json,csv}` and archives a timestamped copy.
-8. Stage & commit: `git add models.json leaderboard.json leaderboard.csv` and a short message.
+4. `./bench pull my-new-model`
+5. `./bench run my-new-model`
+6. `./bench export`
+7. `git add models.json leaderboard.json leaderboard.csv` and commit.
+
+**`openai`-backed models** (run against a local HTTP server):
+1. Make sure the server is reachable (start it manually first — `bench` does not start servers).
+2. Edit `models.json`:
+   ```json
+   "my-server-model": {
+     "model_id": "<your-internal-id>",
+     "backend": "openai",
+     "endpoint": "http://localhost:PORT/v1",
+     "remote_model": "<model name the server expects in the 'model' field>",
+     "size_gb": 0.0,
+     "notes": "<setup steps, prereqs, throttling caveats>"
+   }
+   ```
+3. `./bench list` shows status `live` (reachable) or `offline` (no TCP listener).
+4. `./bench run my-server-model` — no download; runner sends HTTP POSTs.
+5. `./bench export` and commit as usual.
+
+Notes for `openai` backend:
+- No model weights are downloaded; `bench pull` for an openai model just prints config.
+- `bench run all --cached` filters openai models by endpoint reachability (skips offline ones).
+- The `seed` field is sent in the OpenAI request body; respect depends on the server.
 
 ### Annotation rubric (applies when adding/editing examples)
 
@@ -82,26 +113,27 @@ Past audits caught these inconsistencies: lines 33/59 had identical-structure ac
 
 ### "Add a new test example" / "Test with harder X cases"
 
-1. Edit `data.json`. The file is a single flat array of `{"task", "text", "label"}` objects.
-2. **Ordering convention**: easy examples first, hard examples appended at the end **of each task block**. This is load-bearing — `HARD_COUNTS` in `src/mlx_llm_bench/cli.py` (currently `{"sentiment": 8, "topic": 8, "spam": 7}`) identifies hard rows as the last N per task.
-3. If you add hard examples, increment the corresponding count in `HARD_COUNTS`. If you add easy ones, leave it alone.
-4. **Changing `data.json` changes its SHA** — old leaderboard entries are no longer directly comparable. After editing:
+1. Edit `data.json`. Each example is `{"task", "text", "label", "difficulty"}`. The `difficulty` field is `"easy"` or `"hard"` — **set it explicitly**; the harness does not infer from position.
+2. Keep the file format stable: one example per line, blank line between task+difficulty blocks. The convention is easy block first, hard block at the end of each task, but ordering does not affect scoring — `difficulty` does.
+3. **Changing `data.json` changes its SHA** — old leaderboard entries are no longer directly comparable. After editing:
    - `./bench run all --cached` to refresh every locally-cached model
    - `./bench export` to write a new `leaderboard.json` with the new `dataset_sha`
    - Commit `data.json` + `leaderboard.json` + `leaderboard.csv` together.
-5. Cross-task balance matters less than within-task class balance. Keep labels roughly balanced inside each task.
+4. Cross-task balance matters less than within-task class balance. Keep labels roughly balanced inside each task.
 
 ### "Run the benchmark"
 
 - One model: `./bench run <key>`
 - All cached: `./bench run all --cached`
+- JSON-format variant: `./bench run <key> --format json` — model must reply `{"label": "..."}`. Useful for diagnosing format-following vs label-accuracy.
+- Multi-seed: `./bench run <key> --seeds 1 2 3` — runs N times, results tagged per-seed, summary shows mean ± std. MLX is not always bitwise deterministic at temp=0 across batch sizes / KV-cache layouts, so seeds are an honest noise floor.
 - Never run all without `--cached` unless the user explicitly asks — uncached invocation downloads every model in the registry (tens of GB).
 
 ### "Compare two models" / "Compare these runs"
 
-- `./bench history` to find run IDs
-- `./bench compare <id1> <id2>` for accuracy delta + miss overlap
-- `./bench show <id>` for one run's full markdown summary
+- `./bench history` to find run IDs.
+- `./bench compare <id1> <id2>` for accuracy delta + paired McNemar exact two-sided p-value + miss overlap. The McNemar result is the headline — at n=68, Wilson CIs are wide enough that bare accuracy deltas overclaim.
+- `./bench show <id>` for one run's full markdown summary, including per-task and easy/hard breakdowns with 95% Wilson CIs.
 
 ### "Publish updated results"
 
@@ -128,13 +160,18 @@ First 12 hex chars of `sha256(data.json)`. Embedded in `leaderboard.json` and in
 Auto-detected from `system_profiler SPHardwareDataType` on macOS. Lives at `hardware:` in `leaderboard.json`. Future cross-platform results should keep this schema even if the values look different.
 
 ### Prompts
-Defined in `runner.py` at the top (`PROMPT_TEMPLATES`). All three tasks share the same shape: instruction + format directive + `Text:` + `Answer:`. `temp=0`, `max_tokens=250` (safety upper bound — non-thinking models EOS at 1–3 tokens so no slowdown; reasoning-trained models need room to finish their `<think>` block before emitting the answer). Reply is parsed for the first valid label word.
+Defined in `runner.py` (`PROMPT_TEMPLATES`) per format. All three tasks share the same shape: instruction + format directive + input + `Answer:`. `temp=0`, `max_tokens=250` (safety upper bound — non-thinking models EOS at 1–3 tokens so no slowdown; reasoning-trained models need room to finish their `<think>` block before emitting the answer).
+
+Two formats:
+- `text` (default): "Reply with exactly one word." Parser scans for first valid label.
+- `json`: "Respond with `{\"label\": \"...\"}`." Parser regexes the JSON object first; if it can extract a valid label from a `{"label": "x"}` block, `format_ok=True`. Otherwise falls back to text-parse with `format_ok=False`.
 
 ### Scoring
 1. Strip any `<think>...</think>` or `<thought>...</thought>` blocks from the raw output (reasoning-model CoT).
-2. Extract the first word in the remaining response that's in `VALID[task]` — that's the prediction.
-3. If none of the valid labels appear, scoring takes the first alphabetic word (will be marked wrong).
-4. Compare prediction exactly against `label`.
+2. For `format=text`: extract the first word in the remaining response that's in `VALID[task]` — that's the prediction. `format_ok = (any valid label found)`.
+3. For `format=json`: try the `{"label": "..."}` regex first; if it yields a valid label, `format_ok=True`. Else scan for a valid label anywhere (still record it as `pred`) but mark `format_ok=False`.
+4. Compare prediction exactly against `label` for `correct`.
+5. Stats are computed with **95% Wilson score intervals**. Significance between two runs uses **exact two-sided McNemar** on paired discordant pairs.
 
 ## Gotchas (recurring failure modes)
 

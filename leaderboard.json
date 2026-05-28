@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
-  "dataset_sha": "cb96152deb7f",
+  "schema_version": 2,
+  "dataset_sha": "2f0dc8844537",
   "dataset_file": "data.json",
-  "dataset_count": 68,
+  "dataset_count": 100,
   "hardware": {
     "os": "macOS 26.0",
     "machine": "arm64",
@@ -11,150 +11,571 @@
     "cpu_cores": "10 (4 performance and 6 efficiency)",
     "memory": "16 GB"
   },
-  "exported_at": "2026-05-28T01:39:22",
+  "exported_at": "2026-05-28T13:27:32",
+  "methodology": {
+    "temperature": 0.0,
+    "max_tokens": 250,
+    "think_strip": true,
+    "ci_method": "wilson_95",
+    "significance_test": "mcnemar_exact_two_sided"
+  },
   "results": [
     {
       "model_key": "gemma3-12b-qat",
       "model_id": "mlx-community/gemma-3-12b-it-qat-4bit",
       "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 8.0,
+      "overall_acc": 93.0,
+      "overall_ci": [
+        86.3,
+        96.6
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 93.9,
+      "topic_acc": 88.9,
+      "spam_acc": 96.8,
+      "easy_acc": 98.5,
+      "hard_acc": 82.9,
+      "hard_ci": [
+        67.3,
+        91.9
+      ],
+      "avg_inference_s": 1.378,
+      "load_s": 4.0,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-125351_gemma3-12b-qat",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "gemma3-12b-qat",
+      "model_id": "mlx-community/gemma-3-12b-it-qat-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
       "size_gb": 8.0,
       "overall_acc": 92.6,
+      "overall_ci": [
+        83.9,
+        96.8
+      ],
+      "format_ok_rate": 100.0,
       "sentiment_acc": 95.7,
       "topic_acc": 83.3,
       "spam_acc": 100.0,
-      "easy_acc": 97.8,
-      "hard_acc": 82.6,
-      "avg_inference_s": 0.833,
-      "load_s": 3.9,
-      "run_id": "20260528-011731_gemma3-12b-qat",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "gemma4-e4b",
-      "model_id": "mlx-community/gemma-4-e4b-it-4bit",
-      "backend": "mlx-vlm",
-      "size_gb": 5.2,
-      "overall_acc": 89.7,
-      "sentiment_acc": 87.0,
-      "topic_acc": 87.5,
-      "spam_acc": 95.2,
-      "easy_acc": 97.8,
-      "hard_acc": 73.9,
-      "avg_inference_s": 0.278,
-      "load_s": 3.5,
-      "run_id": "20260528-011707_gemma4-e4b",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "gemma3-4b-qat",
-      "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
-      "backend": "mlx-lm",
-      "size_gb": 2.6,
-      "overall_acc": 89.7,
-      "sentiment_acc": 95.7,
-      "topic_acc": 75.0,
-      "spam_acc": 100.0,
-      "easy_acc": 97.8,
-      "hard_acc": 73.9,
-      "avg_inference_s": 0.354,
-      "load_s": 3.1,
-      "run_id": "20260528-011833_gemma3-4b-qat",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "qwen3-8b",
-      "model_id": "mlx-community/Qwen3-8B-4bit",
-      "backend": "mlx-lm",
-      "size_gb": 5.0,
-      "overall_acc": 86.8,
-      "sentiment_acc": 91.3,
-      "topic_acc": 75.0,
-      "spam_acc": 95.2,
-      "easy_acc": 97.8,
-      "hard_acc": 65.2,
-      "avg_inference_s": 0.475,
-      "load_s": 2.1,
-      "run_id": "20260528-011547_qwen3-8b",
-      "run_date": "2026-05-28"
-    },
-    {
-      "model_key": "qwen2.5-coder-7b",
-      "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-      "backend": "mlx-lm",
-      "size_gb": 4.7,
-      "overall_acc": 82.4,
-      "sentiment_acc": 91.3,
-      "topic_acc": 70.8,
-      "spam_acc": 85.7,
-      "easy_acc": 97.8,
-      "hard_acc": 52.2,
-      "avg_inference_s": 0.618,
-      "load_s": 1.8,
-      "run_id": "20260528-011622_qwen2.5-coder-7b",
+      "easy_acc": 92.3,
+      "hard_acc": 100.0,
+      "hard_ci": [
+        43.8,
+        100.0
+      ],
+      "avg_inference_s": 0.836,
+      "load_s": 3.8,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122438_gemma3-12b-qat",
       "run_date": "2026-05-28"
     },
     {
       "model_key": "llama-3.2-3b",
       "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
       "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 1.8,
+      "overall_acc": 91.0,
+      "overall_ci": [
+        83.8,
+        95.2
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 97.0,
+      "topic_acc": 83.3,
+      "spam_acc": 93.5,
+      "easy_acc": 96.9,
+      "hard_acc": 80.0,
+      "hard_ci": [
+        64.1,
+        90.0
+      ],
+      "avg_inference_s": 0.417,
+      "load_s": 1.4,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-132516_llama-3.2-3b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "gemma3-4b-qat",
+      "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
+      "size_gb": 2.6,
+      "overall_acc": 89.7,
+      "overall_ci": [
+        80.2,
+        94.9
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 95.7,
+      "topic_acc": 75.0,
+      "spam_acc": 100.0,
+      "easy_acc": 89.2,
+      "hard_acc": 100.0,
+      "hard_ci": [
+        43.8,
+        100.0
+      ],
+      "avg_inference_s": 0.356,
+      "load_s": 2.1,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122540_gemma3-4b-qat",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "gemma4-e4b",
+      "model_id": "mlx-community/gemma-4-e4b-it-4bit",
+      "backend": "mlx-vlm",
+      "format": "text",
+      "size_gb": 5.2,
+      "overall_acc": 89.7,
+      "overall_ci": [
+        80.2,
+        94.9
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 87.0,
+      "topic_acc": 87.5,
+      "spam_acc": 95.2,
+      "easy_acc": 90.8,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 0.283,
+      "load_s": 3.6,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122412_gemma4-e4b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "gemma4-e4b",
+      "model_id": "mlx-community/gemma-4-e4b-it-4bit",
+      "backend": "mlx-vlm",
+      "format": "json",
+      "size_gb": 5.2,
+      "overall_acc": 89.0,
+      "overall_ci": [
+        81.4,
+        93.7
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 90.9,
+      "topic_acc": 91.7,
+      "spam_acc": 83.9,
+      "easy_acc": 98.5,
+      "hard_acc": 71.4,
+      "hard_ci": [
+        54.9,
+        83.7
+      ],
+      "avg_inference_s": 0.577,
+      "load_s": 3.5,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-125248_gemma4-e4b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "qwen3-8b",
+      "model_id": "mlx-community/Qwen3-8B-4bit",
+      "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 5.0,
+      "overall_acc": 88.0,
+      "overall_ci": [
+        80.2,
+        93.0
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 97.0,
+      "topic_acc": 83.3,
+      "spam_acc": 83.9,
+      "easy_acc": 96.9,
+      "hard_acc": 71.4,
+      "hard_ci": [
+        54.9,
+        83.7
+      ],
+      "avg_inference_s": 0.83,
+      "load_s": 2.0,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-124950_qwen3-8b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "qwen3-8b",
+      "model_id": "mlx-community/Qwen3-8B-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
+      "size_gb": 5.0,
+      "overall_acc": 86.8,
+      "overall_ci": [
+        76.7,
+        92.9
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 91.3,
+      "topic_acc": 75.0,
+      "spam_acc": 95.2,
+      "easy_acc": 87.7,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 0.479,
+      "load_s": 2.0,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122252_qwen3-8b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "qwen2.5-coder-7b",
+      "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+      "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 4.7,
+      "overall_acc": 86.0,
+      "overall_ci": [
+        77.9,
+        91.5
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 87.9,
+      "topic_acc": 80.6,
+      "spam_acc": 90.3,
+      "easy_acc": 96.9,
+      "hard_acc": 65.7,
+      "hard_ci": [
+        49.2,
+        79.2
+      ],
+      "avg_inference_s": 0.892,
+      "load_s": 1.9,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-125116_qwen2.5-coder-7b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "gemma3-4b-qat",
+      "model_id": "mlx-community/gemma-3-4b-it-qat-4bit",
+      "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 2.6,
+      "overall_acc": 85.0,
+      "overall_ci": [
+        76.7,
+        90.7
+      ],
+      "format_ok_rate": 99.0,
+      "sentiment_acc": 93.9,
+      "topic_acc": 80.6,
+      "spam_acc": 80.6,
+      "easy_acc": 93.8,
+      "hard_acc": 68.6,
+      "hard_ci": [
+        52.0,
+        81.4
+      ],
+      "avg_inference_s": 0.541,
+      "load_s": 2.1,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-125614_gemma3-4b-qat",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "qwen2.5-coder-7b",
+      "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
+      "size_gb": 4.7,
+      "overall_acc": 82.4,
+      "overall_ci": [
+        71.6,
+        89.6
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 91.3,
+      "topic_acc": 70.8,
+      "spam_acc": 85.7,
+      "easy_acc": 83.1,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 0.622,
+      "load_s": 1.8,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122327_qwen2.5-coder-7b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "llama-3.2-3b",
+      "model_id": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
       "size_gb": 1.8,
       "overall_acc": 77.9,
+      "overall_ci": [
+        66.7,
+        86.2
+      ],
+      "format_ok_rate": 100.0,
       "sentiment_acc": 95.7,
       "topic_acc": 58.3,
       "spam_acc": 81.0,
-      "easy_acc": 91.1,
-      "hard_acc": 52.2,
-      "avg_inference_s": 0.286,
+      "easy_acc": 78.5,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 0.289,
       "load_s": 1.5,
-      "run_id": "20260528-013851_llama-3.2-3b",
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-124558_llama-3.2-3b",
       "run_date": "2026-05-28"
     },
     {
       "model_key": "smollm3-3b",
       "model_id": "mlx-community/SmolLM3-3B-4bit",
       "backend": "mlx-lm",
+      "format": "json",
       "size_gb": 1.8,
-      "overall_acc": 66.2,
-      "sentiment_acc": 95.7,
-      "topic_acc": 54.2,
-      "spam_acc": 47.6,
-      "easy_acc": 77.8,
-      "hard_acc": 43.5,
-      "avg_inference_s": 1.453,
-      "load_s": 1.3,
-      "run_id": "20260528-012547_smollm3-3b",
+      "overall_acc": 77.0,
+      "overall_ci": [
+        67.8,
+        84.2
+      ],
+      "format_ok_rate": 97.0,
+      "sentiment_acc": 84.8,
+      "topic_acc": 58.3,
+      "spam_acc": 90.3,
+      "easy_acc": 87.7,
+      "hard_acc": 57.1,
+      "hard_ci": [
+        40.9,
+        72.0
+      ],
+      "avg_inference_s": 0.583,
+      "load_s": 1.4,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-130721_smollm3-3b",
       "run_date": "2026-05-28"
     },
     {
-      "model_key": "phi4-mini-reasoning",
-      "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
+      "model_key": "smollm3-3b",
+      "model_id": "mlx-community/SmolLM3-3B-4bit",
       "backend": "mlx-lm",
-      "size_gb": 2.2,
-      "overall_acc": 58.8,
-      "sentiment_acc": 73.9,
-      "topic_acc": 41.7,
-      "spam_acc": 61.9,
-      "easy_acc": 66.7,
-      "hard_acc": 43.5,
-      "avg_inference_s": 5.936,
-      "load_s": 1.5,
-      "run_id": "20260528-011901_phi4-mini-reasoning",
+      "format": "text",
+      "size_gb": 1.8,
+      "overall_acc": 66.2,
+      "overall_ci": [
+        54.3,
+        76.3
+      ],
+      "format_ok_rate": 100.0,
+      "sentiment_acc": 95.7,
+      "topic_acc": 54.2,
+      "spam_acc": 47.6,
+      "easy_acc": 67.7,
+      "hard_acc": 33.3,
+      "hard_ci": [
+        6.1,
+        79.2
+      ],
+      "avg_inference_s": 1.455,
+      "load_s": 1.3,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-123256_smollm3-3b",
       "run_date": "2026-05-28"
     },
     {
       "model_key": "deepseek-r1-distill-7b",
       "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
       "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 4.5,
+      "overall_acc": 64.0,
+      "overall_ci": [
+        54.2,
+        72.7
+      ],
+      "format_ok_rate": 38.0,
+      "sentiment_acc": 69.7,
+      "topic_acc": 55.6,
+      "spam_acc": 67.7,
+      "easy_acc": 69.2,
+      "hard_acc": 54.3,
+      "hard_ci": [
+        38.2,
+        69.5
+      ],
+      "avg_inference_s": 10.112,
+      "load_s": 1.9,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-130822_deepseek-r1-distill-7b",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "phi4-mini-reasoning",
+      "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
+      "size_gb": 2.2,
+      "overall_acc": 58.8,
+      "overall_ci": [
+        47.0,
+        69.7
+      ],
+      "format_ok_rate": 97.1,
+      "sentiment_acc": 73.9,
+      "topic_acc": 41.7,
+      "spam_acc": 61.9,
+      "easy_acc": 58.5,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 5.98,
+      "load_s": 1.5,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-122607_phi4-mini-reasoning",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "phi4-mini-reasoning",
+      "model_id": "lmstudio-community/Phi-4-mini-reasoning-MLX-4bit",
+      "backend": "mlx-lm",
+      "format": "json",
+      "size_gb": 2.2,
+      "overall_acc": 52.0,
+      "overall_ci": [
+        42.3,
+        61.5
+      ],
+      "format_ok_rate": 27.0,
+      "sentiment_acc": 69.7,
+      "topic_acc": 33.3,
+      "spam_acc": 54.8,
+      "easy_acc": 53.8,
+      "hard_acc": 48.6,
+      "hard_ci": [
+        33.0,
+        64.4
+      ],
+      "avg_inference_s": 6.084,
+      "load_s": 1.4,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "2f0dc8844537",
+      "run_id": "20260528-125711_phi4-mini-reasoning",
+      "run_date": "2026-05-28"
+    },
+    {
+      "model_key": "deepseek-r1-distill-7b",
+      "model_id": "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit",
+      "backend": "mlx-lm",
+      "format": "text",
       "size_gb": 4.5,
       "overall_acc": 42.6,
+      "overall_ci": [
+        31.6,
+        54.5
+      ],
+      "format_ok_rate": 100.0,
       "sentiment_acc": 52.2,
       "topic_acc": 25.0,
       "spam_acc": 52.4,
-      "easy_acc": 42.2,
-      "hard_acc": 43.5,
-      "avg_inference_s": 10.008,
-      "load_s": 2.0,
-      "run_id": "20260528-012727_deepseek-r1-distill-7b",
+      "easy_acc": 41.5,
+      "hard_acc": 66.7,
+      "hard_ci": [
+        20.8,
+        93.9
+      ],
+      "avg_inference_s": 9.969,
+      "load_s": 1.9,
+      "seeds": [
+        1
+      ],
+      "seed_std_acc": null,
+      "dataset_sha_at_run": "dd007748678f",
+      "run_id": "20260528-123437_deepseek-r1-distill-7b",
       "run_date": "2026-05-28"
     }
   ]

@@ -65,7 +65,11 @@ PROMPT_TEMPLATES = {
 # Scoring functions are the canonical implementation in rescore.py — runner.py
 # and the `bench rescore` command both use the same logic so a re-scoring pass
 # is identical to a re-run.
-from mlx_llm_bench.rescore import parse_answer, validate_ifeval  # noqa: E402
+from mlx_llm_bench.rescore import (  # noqa: E402
+    load_dataset_with_validators,
+    parse_answer,
+    validate_ifeval,
+)
 
 
 def _seed_mlx(seed):
@@ -258,7 +262,7 @@ def main():
                    help="model name the remote server expects in the 'model' field (required for openai backend)")
     args = p.parse_args()
 
-    data = json.loads(Path(args.data).read_text())
+    data = load_dataset_with_validators(args.data)
     if args.backend == "mlx-lm":
         results, load_s = run_mlx_lm(data, args.model_id, args.max_tokens, args.format, args.seeds)
     elif args.backend == "mlx-vlm":

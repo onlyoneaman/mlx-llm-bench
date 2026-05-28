@@ -434,8 +434,8 @@ def cmd_rescore(args):
     outputs get re-scored without re-running the models. The leaderboard
     export will then reflect the new scoring on the next `bench export`.
     """
-    from mlx_llm_bench.rescore import rescore_run
-    data = json.loads(DATA_FILE.read_text())
+    from mlx_llm_bench.rescore import load_dataset_with_validators, rescore_run
+    data = load_dataset_with_validators(DATA_FILE)
     data_by_i = {i: ex for i, ex in enumerate(data)}
     if not RUNS_DIR.exists():
         print("no runs dir")

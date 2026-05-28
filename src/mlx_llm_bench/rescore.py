@@ -153,6 +153,28 @@ def validate_ifeval(raw, validators):
     return all(r["pass"] for r in results), results
 
 
+def load_dataset_with_validators(data_path, validators_path=None):
+    """Load data.json and merge ifeval_validators.json into each ifeval row.
+
+    Keeps data.json clean of nested validator structures (so HuggingFace's
+    dataset viewer renders well) while still letting our runner/scorer find
+    the validators for IFEval items.
+
+    `validators_path` defaults to `ifeval_validators.json` next to data.json.
+    """
+    data = json.loads(Path(data_path).read_text())
+    if validators_path is None:
+        validators_path = Path(data_path).parent / "ifeval_validators.json"
+    p = Path(validators_path)
+    if p.exists():
+        vmap = json.loads(p.read_text())
+        for i, ex in enumerate(data):
+            key = str(i)
+            if key in vmap:
+                ex["validators"] = vmap[key]
+    return data
+
+
 def rescore_run(rdir, data_by_i):
     """Re-score one run's results.json in place. Returns (n_examples, n_changed)."""
     res_path = rdir / "results.json"
@@ -198,7 +220,7 @@ def main():
     runs_dir = Path(args.runs_dir) if args.runs_dir else here / "runs"
     data_file = Path(args.data_file) if args.data_file else here / "data.json"
 
-    data = json.loads(data_file.read_text())
+    data = load_dataset_with_validators(data_file)
     data_by_i = {i: ex for i, ex in enumerate(data)}
 
     print(f"Rescoring runs in {runs_dir} against {data_file} ({len(data)} examples)")

@@ -329,6 +329,16 @@ def cmd_compare(args):
     rs_a = ra["results"]
     rs_b = rb["results"]
 
+    # Check dataset_sha compatibility BEFORE printing any side-by-side numbers.
+    # Different SHAs are not comparable by repo rule; printing deltas first
+    # would mislead.
+    sha_a = json.loads((RUNS_DIR / args.id1 / "meta.json").read_text()).get("dataset_sha")
+    sha_b = json.loads((RUNS_DIR / args.id2 / "meta.json").read_text()).get("dataset_sha")
+    if sha_a and sha_b and sha_a != sha_b:
+        print(f"\n⚠️  dataset_sha differs ({sha_a} vs {sha_b}) — these runs are not comparable.")
+        print(f"   Rerun one of them against the current dataset to compare.\n")
+        return
+
     print(f"\n{args.id1}  vs  {args.id2}\n")
     def line(label, ta, tb):
         print(f"  {label:10s}  {fmt_acc(ta)}  vs  {fmt_acc(tb)}   delta {tb['acc']-ta['acc']:+.1f}")
@@ -343,12 +353,6 @@ def cmd_compare(args):
         ta, tb = stats(rs_a, difficulty=label), stats(rs_b, difficulty=label)
         if ta and tb:
             line(label, ta, tb)
-
-    sha_a = json.loads((RUNS_DIR / args.id1 / "meta.json").read_text()).get("dataset_sha")
-    sha_b = json.loads((RUNS_DIR / args.id2 / "meta.json").read_text()).get("dataset_sha")
-    if sha_a and sha_b and sha_a != sha_b:
-        print(f"\n⚠️  dataset_sha differs ({sha_a} vs {sha_b}) — McNemar invalid; skipping.")
-        return
 
     # Aggregate per (task, i) — majority-correct across seeds — before pairing.
     # Pairing on (task, i, seed) would treat highly-correlated seed replicates as

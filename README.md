@@ -59,23 +59,25 @@ cd mlx-llm-bench
 
 Canonical source: [`leaderboard.csv`](./leaderboard.csv) / [`leaderboard.json`](./leaderboard.json). Snapshot below regenerated from `bench export` against `dataset_sha 2c34076d55d3` (content-based — invariant to JSON formatting). **n=125 = 100 classification examples (sentiment + topic + spam) + 25 IFEval instruction-following examples.**
 
-| Rank | Model | Acc (95% CI) | Easy | Hard | fmt_ok | Avg time | Size |
-|---|---|---|---|---|---|---|---|
-| 1 | **gemma3-12b-qat** | **92.8%** [87–96] | 97% | 85% | 100% | 2.24s | 8.0GB |
-| 2 | **llama-3.2-3b** | **92.0%** [86–96] | 97% | 83% | 100% | **0.74s** | **1.8GB** |
-| 3 | gemma4-e4b | 90.4% [84–94] | 99% | 77% | 100% | 0.82s | 5.2GB |
-| 3 | ministral-3-8b | 90.4% [84–94] | 97% | 79% | 100% | 4.21s | 5.6GB |
-| 5 | llama-3.1-8b | 89.6% [83–94] | 97% | 77% | 100% | 1.63s | 4.2GB |
-| 5 | qwen3-8b | 89.6% [83–94] | 97% | 77% | 100% | 1.25s | 5.0GB |
-| 7 | gemma3-4b-qat | 85.6% [78–91] | 95% | 70% | 99% | 0.89s | 2.6GB |
-| 8 | phi4-mini-instruct | 84.8% [78–90] | 94% | 70% | 100% | 0.96s | 2.2GB |
-| 8 | qwen2.5-coder-7b | 84.8% [78–90] | 96% | 66% | 100% | 1.26s | 4.7GB |
-| 10 | mistral-nemo-minitron-8b | 80.0% [72–86] | 90% | 64% | 100% | 12.18s | 4.4GB |
-| 11 | smollm3-3b | 79.2% [71–85] | 88% | 64% | 98% | 0.86s | 1.8GB |
-| 12 | nemotron-nano-9b | 78.4% [70–85] | 86% | 66% | 96% | 10.13s | 5.0GB |
-| 13 | hermes-3-llama-3.2-3b | 74.4% [66–81] | 87% | 53% | **42%** ⚠️ | 0.75s | 1.7GB |
-| 14 | deepseek-r1-distill-7b | 59.2% [50–67] | 64% | 51% | **50%** | 10.06s | 4.5GB |
-| 15 | phi4-mini-reasoning | 48.0% [39–57] | 53% | 40% | **42%** | 6.07s | 2.2GB |
+| Rank | Model | Acc (CI) | Strict | Easy | Hard | fmt_ok | Time | Size |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **gemma3-12b-qat** | **92.8%** [86.9–96.2] | 92.8% | 97% | 85% | 100% | 2.24s | 8.0GB |
+| 2 | **llama-3.2-3b** | **92.0%** [85.9–95.6] | 92.0% | 97% | 83% | 100% | **0.74s** | **1.8GB** |
+| 3 | gemma4-e4b | 90.4% [84.0–94.4] | 90.4% | 99% | 77% | 100% | 0.82s | 5.2GB |
+| 3 | ministral-3-8b | 90.4% [84.0–94.4] | 90.4% | 97% | 79% | 100% | 4.21s | 5.6GB |
+| 5 | llama-3.1-8b | 89.6% [83.0–93.8] | 89.6% | 97% | 77% | 100% | 1.63s | 4.2GB |
+| 5 | qwen3-8b | 89.6% [83.0–93.8] | 89.6% | 97% | 77% | 100% | 1.25s | 5.0GB |
+| 7 | gemma3-4b-qat | 85.6% [78.4–90.7] | 85.6% | 95% | 70% | 99% | 0.89s | 2.6GB |
+| 8 | phi4-mini-instruct | 84.8% [77.5–90.0] | 84.8% | 94% | 70% | 100% | 0.96s | 2.2GB |
+| 8 | qwen2.5-coder-7b | 84.8% [77.5–90.0] | 84.8% | 96% | 66% | 100% | 1.26s | 4.7GB |
+| 10 | mistral-nemo-minitron-8b | 80.8% [73.0–86.7] | 80.8% | 90% | 66% | 100% | 12.18s | 4.4GB |
+| 11 | smollm3-3b | 79.2% [71.3–85.4] | 79.2% | 88% | 64% | 98% | 0.86s | 1.8GB |
+| 12 | nemotron-nano-9b | 78.4% [70.4–84.7] | 74.4% | 86% | 66% | 96% | 10.13s | 5.0GB |
+| 13 | hermes-3-llama-3.2-3b | 74.4% [66.1–81.2] | **27.2%** | 87% | 53% | **42%** ⚠️ | 0.75s | 1.7GB |
+| 14 | deepseek-r1-distill-7b | 59.2% [50.4–67.4] | **35.2%** | 64% | 51% | **50%** | 10.06s | 4.5GB |
+| 15 | phi4-mini-reasoning | 48.0% [39.4–56.7] | **27.2%** | 53% | 40% | **42%** | 6.07s | 2.2GB |
+
+> **Strict** = correct AND format-compliant per example. The Hermes-3 gap (74.4% lenient → 27.2% strict) is the smoking gun for "alignment finetune broke instruction-following." Reasoning models (Phi-4-mini-reasoning, DeepSeek-R1-Distill) show the same pattern from a different cause: they emit `<think>` blocks that the parser recovers labels from.
 
 ## Which model should I run?
 
